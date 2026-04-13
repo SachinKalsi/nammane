@@ -58,21 +58,64 @@ class DataService:
     def delete_record(self, sheet_name, record_id):
         self.update_record(sheet_name, record_id, {'is_deleted': 'TRUE'})
 
-    def handle_files(self, req_files, key_prefix='files'):
+    def _ensure_local_path(self, path_parts):
+        base = os.path.join('static', 'uploads')
+        for part in path_parts:
+            if part:
+                safe_part = "".join(c for c in part if c.isalnum() or c in " _-")
+                base = os.path.join(base, safe_part)
+        os.makedirs(base, exist_ok=True)
+        return base
+
+    def handle_files(self, req_files, key_prefix='files', upload_context=None):
         upload_folder = os.path.join('static', 'uploads')
-        os.makedirs(upload_folder, exist_ok=True)
+        
+        target_folder = upload_folder
+        rel_path = ''
+        if upload_context:
+            t = upload_context.get('type')
+            d = upload_context.get('data', {})
+            if t == 'insurance':
+                pn = d.get('policy_name', 'UnknownPolicy')
+                pc = d.get('persons_covered', '')
+                f_name = f"{pn}_{pc}" if pc else pn
+                f_name = "".join(c for c in f_name if c.isalnum() or c in " _-")
+                target_folder = self._ensure_local_path(['Insurance', f_name])
+                rel_path = f"Insurance/{f_name}/"
+        else:
+            os.makedirs(upload_folder, exist_ok=True)
+            
         paths = []
         if key_prefix == 'files':
             for f in req_files.getlist(key_prefix):
                 if f and f.filename:
                     filename = secure_filename(str(uuid.uuid4())[:8] + "_" + f.filename)
-                    f.save(os.path.join(upload_folder, filename))
-                    paths.append(f"/static/uploads/{filename}")
+                    f.save(os.path.join(target_folder, filename))
+                    paths.append(f"/static/uploads/{rel_path}{filename}")
         return paths
 
     def process_entry_attachments(self, entry_id, req):
         upload_folder = os.path.join('static', 'uploads')
-        os.makedirs(upload_folder, exist_ok=True)
+        target_folder = upload_folder
+        rel_path = ''
+        
+        entry = next((e for e in self.get_records('Health_Entries') if e['id'] == entry_id), None)
+        if entry:
+            person_id = entry.get('person_id')
+            person = next((p for p in self.get_records('People') if p['id'] == person_id), None)
+            person_name = person.get('name', 'Unknown') if person else 'Unknown'
+            entry_name = entry.get('name', 'Entry')
+            date = entry.get('date', '')
+            folder_name = f"{entry_name}_{date}" if date else entry_name
+            
+            person_name = "".join(c for c in person_name if c.isalnum() or c in " _-")
+            folder_name = "".join(c for c in folder_name if c.isalnum() or c in " _-")
+            
+            target_folder = self._ensure_local_path(['MedicalReports', person_name, folder_name])
+            rel_path = f"MedicalReports/{person_name}/{folder_name}/"
+        else:
+            os.makedirs(upload_folder, exist_ok=True)
+
         atts_str = req.form.get('attachments', '[]')
         try:
             atts = json.loads(atts_str)
@@ -84,8 +127,8 @@ class DataService:
             if key.startswith('att_file_') and file_obj and file_obj.filename:
                 idx = int(key.split('_')[-1])
                 filename = secure_filename(str(uuid.uuid4())[:8] + "_" + file_obj.filename)
-                file_obj.save(os.path.join(upload_folder, filename))
-                saved_files[idx] = f"/static/uploads/{filename}"
+                file_obj.save(os.path.join(target_folder, filename))
+                saved_files[idx] = f"/static/uploads/{rel_path}{filename}"
                 
         existing_atts = [a for a in self.get_records('Health_Attachments') if a['entry_id'] == entry_id]
         for ext in existing_atts:

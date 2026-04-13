@@ -143,20 +143,52 @@ class DataService:
                     body={"values": [new_row]}
                 ).execute()
 
+    def _get_or_create_folder(self, folder_name, parent_id):
+        if not self.drive_service or not folder_name: return parent_id
+        safe_name = folder_name.replace("'", "\\'")
+        query = f"name='{safe_name}' and '{parent_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        with self.lock:
+            res = self.drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+            files = res.get('files', [])
+            if files:
+                return files[0]['id']
+            file_metadata = {'name': folder_name, 'mimeType': 'application/vnd.google-apps.folder', 'parents': [parent_id]}
+            folder = self.drive_service.files().create(body=file_metadata, fields='id').execute()
+            return folder.get('id')
+
+    def _ensure_drive_path(self, path_parts):
+        current = self.drive_folder_id
+        for part in path_parts:
+            if part:
+                current = self._get_or_create_folder(part, current)
+        return current
+
     def delete_record(self, sheet_name, record_id):
         self.update_record(sheet_name, record_id, {'is_deleted': 'TRUE'})
 
-    def handle_files(self, req_files, key_prefix='files'):
+    def handle_files(self, req_files, key_prefix='files', upload_context=None):
         paths = []
         if not self.drive_service:
             return paths
         
+        target_folder = self.drive_folder_id
+        if upload_context:
+            t = upload_context.get('type')
+            d = upload_context.get('data', {})
+            if t == 'insurance':
+                pn = d.get('policy_name', 'UnknownPolicy')
+                pc = d.get('persons_covered', '')
+                f_name = f"{pn}_{pc}" if pc else pn
+                # Sanitize folder name
+                f_name = "".join(c for c in f_name if c.isalnum() or c in " _-")
+                target_folder = self._ensure_drive_path(['Insurance', f_name])
+                
         if key_prefix == 'files':
             for f in req_files.getlist(key_prefix):
                 if f and f.filename:
                     file_metadata = {
                         'name': f.filename,
-                        'parents': [self.drive_folder_id]
+                        'parents': [target_folder]
                     }
                     media = MediaIoBaseUpload(io.BytesIO(f.read()), mimetype=f.mimetype or 'application/octet-stream', resumable=True)
                     with self.lock:
@@ -176,12 +208,29 @@ class DataService:
             
         saved_files = {}
         if self.drive_service:
+            target_folder = self.drive_folder_id
+            
+            # Find Person and Entry context
+            entry = next((e for e in self.get_records('Health_Entries') if e['id'] == entry_id), None)
+            if entry:
+                person_id = entry.get('person_id')
+                person = next((p for p in self.get_records('People') if p['id'] == person_id), None)
+                person_name = person.get('name', 'Unknown') if person else 'Unknown'
+                entry_name = entry.get('name', 'Entry')
+                date = entry.get('date', '')
+                folder_name = f"{entry_name}_{date}" if date else entry_name
+                
+                person_name = "".join(c for c in person_name if c.isalnum() or c in " _-")
+                folder_name = "".join(c for c in folder_name if c.isalnum() or c in " _-")
+                
+                target_folder = self._ensure_drive_path(['MedicalReports', person_name, folder_name])
+
             for key, file_obj in req.files.items():
                 if key.startswith('att_file_') and file_obj and file_obj.filename:
                     idx = int(key.split('_')[-1])
                     file_metadata = {
                         'name': file_obj.filename,
-                        'parents': [self.drive_folder_id]
+                        'parents': [target_folder]
                     }
                     media = MediaIoBaseUpload(io.BytesIO(file_obj.read()), mimetype=file_obj.mimetype or 'application/octet-stream', resumable=True)
                     with self.lock:

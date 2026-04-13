@@ -189,7 +189,7 @@ def get_insurance():
 def create_insurance():
     data = request.get_json(silent=True) or request.form.to_dict()
     existing = data.pop('existing_file_links', '')
-    paths = data_service.handle_files(request.files, 'files')
+    paths = data_service.handle_files(request.files, 'files', upload_context={'type': 'insurance', 'data': data})
     all_paths = [p for p in existing.split(',') if p] + paths
     data['file_paths'] = ",".join(all_paths)
     data['file_drive_links'] = ",".join(all_paths)
@@ -202,7 +202,7 @@ def modify_insurance(insurance_id):
     if request.method == 'PUT':
         data = request.get_json(silent=True) or request.form.to_dict()
         existing = data.pop('existing_file_links', '')
-        paths = data_service.handle_files(request.files, 'files')
+        paths = data_service.handle_files(request.files, 'files', upload_context={'type': 'insurance', 'data': data})
         all_paths = [p for p in existing.split(',') if p] + paths
         data['file_paths'] = ",".join(all_paths)
         data['file_drive_links'] = ",".join(all_paths)
