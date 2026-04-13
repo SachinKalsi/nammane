@@ -77,8 +77,8 @@ class DataService:
             d = upload_context.get('data', {})
             if t == 'insurance':
                 pn = d.get('policy_name', 'UnknownPolicy')
-                pc = d.get('persons_covered', '')
-                f_name = f"{pn}_{pc}" if pc else pn
+                prov = d.get('provider', 'UnknownProvider')
+                f_name = f"{prov}_{pn}"
                 f_name = "".join(c for c in f_name if c.isalnum() or c in " _-")
                 target_folder = self._ensure_local_path(['Insurance', f_name])
                 rel_path = f"Insurance/{f_name}/"
