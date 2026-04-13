@@ -11,12 +11,12 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapi
 
 # Schema defined in the specification
 TABLES = {
-    'People': ['id', 'name', 'dob', 'relation', 'blood_group', 'allergies', 'description', 'created_at'],
-    'Health_Entries': ['id', 'person_id', 'name', 'doctor', 'hospital', 'date', 'next_visit_date', 'description', 'linked_entry_id', 'created_at'],
-    'Health_Attachments': ['id', 'entry_id', 'name', 'file_path', 'file_drive_link', 'value', 'datetime', 'description', 'created_at'],
-    'Health_Medicines': ['id', 'person_id', 'entry_id', 'medicine_name', 'purpose', 'dosage', 'when_to_take', 'from_date', 'until_date', 'ongoing', 'notes', 'created_at'],
-    'Health_Insurance': ['id', 'persons_covered', 'provider', 'policy_name', 'policy_number', 'type', 'sum_insured', 'premium_amount', 'premium_frequency', 'premium_due_date', 'renewal_date', 'file_paths', 'file_drive_links', 'notes', 'created_at'],
-    'Vault_Documents': ['id', 'person_id', 'category', 'name', 'document_number', 'issued_by', 'issue_date', 'expiry_date', 'file_paths', 'file_drive_links', 'description', 'created_at']
+    'People': ['id', 'name', 'dob', 'relation', 'blood_group', 'allergies', 'description', 'created_at', 'is_deleted'],
+    'Health_Entries': ['id', 'person_id', 'name', 'doctor', 'hospital', 'date', 'next_visit_date', 'description', 'linked_entry_id', 'created_at', 'is_deleted'],
+    'Health_Attachments': ['id', 'entry_id', 'name', 'file_path', 'file_drive_link', 'value', 'datetime', 'description', 'created_at', 'is_deleted'],
+    'Health_Medicines': ['id', 'person_id', 'entry_id', 'medicine_name', 'purpose', 'dosage', 'when_to_take', 'from_date', 'until_date', 'ongoing', 'notes', 'created_at', 'is_deleted'],
+    'Health_Insurance': ['id', 'persons_covered', 'provider', 'policy_name', 'policy_number', 'type', 'sum_insured', 'premium_amount', 'premium_frequency', 'premium_due_date', 'renewal_date', 'file_paths', 'file_drive_links', 'notes', 'created_at', 'is_deleted'],
+    'Vault_Documents': ['id', 'person_id', 'category', 'name', 'document_number', 'issued_by', 'issue_date', 'expiry_date', 'file_paths', 'file_drive_links', 'description', 'created_at', 'is_deleted']
 }
 
 def main():

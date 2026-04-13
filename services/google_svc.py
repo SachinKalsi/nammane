@@ -70,6 +70,11 @@ class DataService:
             record = {}
             for i, header in enumerate(headers):
                 record[header] = row[i] if i < len(row) else ''
+            
+            # Skip soft-deleted records
+            if str(record.get('is_deleted', '')).upper() == 'TRUE':
+                continue
+                
             records.append(record)
         return records
 
@@ -139,49 +144,7 @@ class DataService:
                 ).execute()
 
     def delete_record(self, sheet_name, record_id):
-        if not self.sheets_service:
-            return
-            
-        with self.lock:
-            res = self.sheets_service.spreadsheets().values().get(
-                spreadsheetId=self.spreadsheet_id,
-                range=f"{sheet_name}!A:Z"
-            ).execute()
-        
-        values = res.get('values', [])
-        if not values:
-            return
-            
-        headers = values[0]
-        id_index = headers.index('id') if 'id' in headers else 0
-        
-        row_idx = None
-        for i, row in enumerate(values):
-            if i > 0 and len(row) > id_index and row[id_index] == record_id:
-                row_idx = i
-                break
-                
-        if row_idx is not None:
-            with self.lock:
-                # First, fetch the sheet ID for `sheet_name`
-                spreadsheet = self.sheets_service.spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
-                sheet_id = next((s['properties']['sheetId'] for s in spreadsheet.get('sheets', []) if s['properties']['title'] == sheet_name), None)
-                
-                if sheet_id is not None:
-                    request = {
-                        "deleteDimension": {
-                            "range": {
-                                "sheetId": sheet_id,
-                                "dimension": "ROWS",
-                                "startIndex": row_idx,
-                                "endIndex": row_idx + 1
-                            }
-                        }
-                    }
-                    self.sheets_service.spreadsheets().batchUpdate(
-                        spreadsheetId=self.spreadsheet_id,
-                        body={"requests": [request]}
-                    ).execute()
+        self.update_record(sheet_name, record_id, {'is_deleted': 'TRUE'})
 
     def handle_files(self, req_files, key_prefix='files'):
         paths = []
