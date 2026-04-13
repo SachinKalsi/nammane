@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a3a2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Nammane — Our Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     LOGIN
+══════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-logo">Namma<span style="color:var(--accent);">ne</span></div>
+  <div class="login-sub">ನಮ್ಮ ಮನೆ · Our Home</div>
+  <div class="pin-card">
+    <div class="pin-label">Enter PIN</div>
+    <div class="pin-dots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-btn" data-n="1">1</button>
+      <button class="pin-btn" data-n="2">2</button>
+      <button class="pin-btn" data-n="3">3</button>
+      <button class="pin-btn" data-n="4">4</button>
+      <button class="pin-btn" data-n="5">5</button>
+      <button class="pin-btn" data-n="6">6</button>
+      <button class="pin-btn" data-n="7">7</button>
+      <button class="pin-btn" data-n="8">8</button>
+      <button class="pin-btn" data-n="9">9</button>
+      <button class="pin-btn" data-n="clr" style="font-size:0.75rem;font-family:'DM Sans',sans-serif;">CLR</button>
+      <button class="pin-btn" data-n="0">0</button>
+      <button class="pin-btn" data-n="del"><i class="bi bi-backspace" style="font-size:1rem;"></i></button>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     APP SHELL
+══════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-title">Namma<span>ne</span></div>
+    <div class="topbar-actions">
+      <button class="topbar-btn" onclick="showPage('page-search')" title="Search"><i class="bi bi-search"></i></button>
+      <button class="topbar-btn" onclick="doLogout()" title="Lock"><i class="bi bi-lock"></i></button>
+    </div>
+  </div>
+
+  <!-- Overlay -->
+  <div class="overlay" id="overlay">
+    <div class="overlay-spinner"></div>
+    <div class="overlay-msg" id="overlay-msg">Saving...</div>
+    <div class="overlay-bar-wrap"><div class="overlay-bar" id="overlay-bar"></div></div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-wrap"><div class="toast-msg" id="toast"></div></div>
+
+  <!-- ── PAGE: HOME ─────────────────────────────────────── -->
+  <div class="page active" id="page-home">
+
+    <!-- People -->
+    <div class="section-hd" style="margin-top:0;">
+      <div class="section-title">People</div>
+      <button class="btn-xs primary" onclick="openPersonModal()"><i class="bi bi-plus-lg me-1"></i>Add</button>
+    </div>
+    <div class="table-wrap" style="margin-bottom:4px;">
+      <table class="people-table">
+        <thead><tr><th>Name</th><th>Ongoing Medicines</th><th></th></tr></thead>
+        <tbody id="people-tbody"></tbody>
+      </table>
+      <div class="add-person-row" onclick="openPersonModal()">
+        <i class="bi bi-plus-circle"></i> Add Person
+      </div>
+    </div>
+
+
+
+
+
+  </div><!-- /page-home -->
+
+  <!-- ── PAGE: INSURANCE ───────────────────────────────── -->
+  <div class="page" id="page-insurance">
+    <div class="page-subhd">
+      <h2>Insurance</h2>
+      <button class="btn-secondary-brand" onclick="openInsuranceModal()">
+        <i class="bi bi-plus-lg me-1"></i>Add
+      </button>
+    </div>
+    <div class="filter-strip" id="ins-filter"></div>
+    <div id="insurance-list">
+      <div class="empty-state"><i class="bi bi-shield"></i><p>No insurance policies yet</p></div>
+    </div>
+  </div>
+
+  <!-- ── PAGE: MEDICAL REPORTS ─────────────────────────── -->
+  <div class="page" id="page-reports">
+    <div class="page-subhd">
+      <h2>Medical Reports</h2>
+      <button class="btn-secondary-brand" onclick="openEntryModal()">
+        <i class="bi bi-plus-lg me-1"></i>Add
+      </button>
+    </div>
+    <div class="filter-strip" id="rep-filter"></div>
+    <div id="reports-list"></div>
+    <div style="text-align:center;margin-top:10px;" id="rep-viewall-wrap" style="display:none;">
+      <button class="view-all-btn" id="rep-viewall-btn" onclick="loadMoreReports()">Load more →</button>
+    </div>
+  </div>
+
+  <!-- ── PAGE: MEDICINES ───────────────────────────────── -->
+  <div class="page" id="page-medicines">
+    <div class="page-subhd">
+      <h2>Medicines</h2>
+      <button class="btn-secondary-brand" onclick="openMedicineModal()">
+        <i class="bi bi-plus-lg me-1"></i>Add
+      </button>
+    </div>
+    <div class="filter-strip" id="med-filter"></div>
+    <div id="medicines-list"></div>
+    <div style="text-align:center;margin-top:10px;">
+      <button class="view-all-btn" id="med-viewall-btn" onclick="loadMoreMeds()">Load more →</button>
+    </div>
+  </div>
+
+  <!-- ── PAGE: VAULT ───────────────────────────────────── -->
+  <div class="page" id="page-vault">
+    <div class="page-subhd">
+      <h2>Documents Vault</h2>
+      <button class="btn-secondary-brand" onclick="openVaultModal()">
+        <i class="bi bi-plus-lg me-1"></i>Add
+      </button>
+    </div>
+    <div class="filter-strip" id="vault-cat-filter"></div>
+    <div class="filter-strip" id="vault-person-filter"></div>
+    <div id="vault-list">
+      <div class="empty-state"><i class="bi bi-folder2"></i><p>No documents yet</p></div>
+    </div>
+  </div>
+
+  <!-- ── PAGE: SEARCH ──────────────────────────────────── -->
+  <div class="page" id="page-search">
+    <div class="page-subhd"><h2>Search</h2></div>
+    <div style="position:relative;margin-bottom:14px;">
+      <i class="bi bi-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:0.9rem;"></i>
+      <input type="text" class="form-control" id="search-input" placeholder="Search records, medicines, insurance..." style="padding-left:36px;">
+    </div>
+    <div id="search-results">
+      <div class="empty-state"><i class="bi bi-search"></i><p>Type to search everything</p></div>
+    </div>
+  </div>
+
+  <!-- ── BOTTOM NAV ────────────────────────────────────── -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-home" onclick="showPage('page-home')">
+      <i class="bi bi-house-fill"></i>Home
+    </button>
+    <button class="nav-btn" id="nav-insurance" onclick="showPage('page-insurance')">
+      <i class="bi bi-shield-fill"></i>Insurance
+    </button>
+    <button class="nav-btn" id="nav-reports" onclick="showPage('page-reports')">
+      <i class="bi bi-file-medical-fill"></i>Reports
+    </button>
+    <button class="nav-btn" id="nav-medicines" onclick="showPage('page-medicines')">
+      <i class="bi bi-capsule-pill"></i>Medicines
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- ══════════════════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════════════════ -->
+
+<!-- Person Modal -->
+<div class="modal-overlay" id="person-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="person-modal-title">Add Person</div>
+    <input type="hidden" id="pm-id">
+    <div class="form-group">
+      <label class="form-label">Full Name *</label>
+      <input type="text" class="form-control" id="pm-name" placeholder="e.g. Rajan Kumar">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Date of Birth</label>
+        <input type="date" class="form-control" id="pm-dob">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Relation</label>
+        <input type="text" class="form-control" id="pm-relation" placeholder="Father, Wife...">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Blood Group</label>
+        <select class="form-select" id="pm-blood">
+          <option value="">Unknown</option>
+          <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+          <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Allergies</label>
+        <input type="text" class="form-control" id="pm-allergies" placeholder="Penicillin...">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Medical History / Milestones</label>
+      <textarea class="form-control" id="pm-desc" rows="4" placeholder="Jan 2022 - Diagnosed with hypertension&#10;Mar 2023 - Started Metformin..."></textarea>
+    </div>
+    <div class="modal-footer-btns">
+      <button class="btn-danger" id="pm-del-btn" style="display:none;" onclick="deletePerson()">Delete</button>
+      <button class="btn-secondary-brand" onclick="closeModal('person-modal')">Cancel</button>
+      <button class="btn-primary-brand" onclick="savePerson()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Person Detail Modal -->
+<div class="modal-overlay" id="person-detail-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="person-detail-content"></div>
+    <div style="margin-top:12px;">
+      <button class="btn-secondary-brand" style="width:100%;" onclick="closeModal('person-detail-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Medical Entry Modal -->
+<div class="modal-overlay" id="entry-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="entry-modal-title">Add Medical Report</div>
+    <input type="hidden" id="em-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Person *</label>
+        <select class="form-select" id="em-person"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date *</label>
+        <input type="date" class="form-control" id="em-date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Entry Name *</label>
+      <input type="text" class="form-control" id="em-name" placeholder="e.g. Annual Checkup Jan 2025, BP Log">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Doctor</label>
+        <input type="text" class="form-control" id="em-doctor" placeholder="Dr. Sharma">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hospital / Clinic</label>
+        <input type="text" class="form-control" id="em-hospital" placeholder="Apollo">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Next Visit Date</label>
+      <input type="date" class="form-control" id="em-next">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description / Overall Notes</label>
+      <textarea class="form-control" id="em-desc" placeholder="Overall findings, observations..."></textarea>
+    </div>
+
+    <!-- Attachments -->
+    <div class="repeat-section">
+      <div class="repeat-section-title"><i class="bi bi-paperclip me-1"></i>Attachments</div>
+      <div id="em-attachments"></div>
+      <button class="add-row-btn" onclick="addAttachmentRow()">+ Add Attachment</button>
+    </div>
+
+
+    <div class="modal-footer-btns">
+      <button class="btn-danger" id="em-del-btn" style="display:none;" onclick="deleteEntry()">Delete</button>
+      <button class="btn-secondary-brand" onclick="closeModal('entry-modal')">Cancel</button>
+      <button class="btn-primary-brand" onclick="saveEntry()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Medicine Modal (standalone) -->
+<div class="modal-overlay" id="medicine-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="med-modal-title">Add Medicine</div>
+    <input type="hidden" id="mm-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Person *</label>
+        <select class="form-select" id="mm-person"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Linked Report</label>
+        <select class="form-select" id="mm-entry"><option value="">None</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Medicine Name *</label>
+      <input type="text" class="form-control" id="mm-name" placeholder="e.g. Metformin">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Purpose / Uses</label>
+      <input type="text" class="form-control" id="mm-purpose" placeholder="e.g. For blood sugar control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Dosage</label>
+      <input type="text" class="form-control" id="mm-dosage" placeholder="e.g. 500mg, 1 tablet">
+    </div>
+    <div class="form-group">
+      <label class="form-label">When to Take</label>
+      <div class="chip-group" id="mm-when">
+        <div class="chip" data-val="Morning">Morning</div>
+        <div class="chip" data-val="Afternoon">Afternoon</div>
+        <div class="chip" data-val="Night">Night</div>
+        <div class="chip" data-val="Before food">Before food</div>
+        <div class="chip" data-val="After food">After food</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">From Date</label>
+        <input type="date" class="form-control" id="mm-from">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Until Date</label>
+        <input type="date" class="form-control" id="mm-until">
+      </div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;font-weight:600;color:var(--brand);">
+        <input type="checkbox" id="mm-ongoing" style="width:16px;height:16px;accent-color:var(--brand);"> Ongoing (no end date)
+      </label>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-control" id="mm-notes" rows="2" placeholder="Any additional notes..."></textarea>
+    </div>
+    <div class="modal-footer-btns">
+      <button class="btn-danger" id="mm-del-btn" style="display:none;" onclick="deleteMedicine()">Delete</button>
+      <button class="btn-secondary-brand" onclick="closeModal('medicine-modal')">Cancel</button>
+      <button class="btn-primary-brand" onclick="saveMedicine()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Insurance Modal -->
+<div class="modal-overlay" id="insurance-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="ins-modal-title">Add Insurance Policy</div>
+    <input type="hidden" id="im-id">
+    <div class="form-group">
+      <label class="form-label">Persons Covered *</label>
+      <div class="people-multiselect" id="im-persons"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Provider *</label>
+        <input type="text" class="form-control" id="im-provider" placeholder="Star Health, LIC...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="im-type">
+          <option>Health</option><option>Life</option><option>Term</option>
+          <option>Vehicle</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Policy Name</label>
+      <input type="text" class="form-control" id="im-pname" placeholder="e.g. Family Floater Health">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Policy Number</label>
+      <input type="text" class="form-control" id="im-pnum" placeholder="Policy / Certificate number">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Sum Insured (₹)</label>
+        <input type="number" class="form-control" id="im-sum" placeholder="500000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Premium (₹)</label>
+        <input type="number" class="form-control" id="im-premium" placeholder="12000">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Frequency</label>
+        <select class="form-select" id="im-freq">
+          <option>Annual</option><option>Quarterly</option><option>Monthly</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Premium Due Date</label>
+        <input type="date" class="form-control" id="im-due">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Renewal Date</label>
+      <input type="date" class="form-control" id="im-renewal">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Upload Policy Documents</label>
+      <div class="upload-zone" id="im-upload-zone">
+        <i class="bi bi-cloud-upload"></i>
+        <p>Tap to upload PDF or image</p>
+        <input type="file" id="im-files" multiple accept="image/*,application/pdf" style="display:none;">
+      </div>
+      <div class="file-list" id="im-file-list"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-control" id="im-notes" rows="2"></textarea>
+    </div>
+    <div class="modal-footer-btns">
+      <button class="btn-danger" id="im-del-btn" style="display:none;" onclick="deleteInsurance()">Delete</button>
+      <button class="btn-secondary-brand" onclick="closeModal('insurance-modal')">Cancel</button>
+      <button class="btn-primary-brand" onclick="saveInsurance()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Vault Document Modal -->
+<div class="modal-overlay" id="vault-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="vault-modal-title">Add Document</div>
+    <input type="hidden" id="vm-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Category *</label>
+        <select class="form-select" id="vm-cat">
+          <option>Identity</option><option>Property</option>
+          <option>Vehicle</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Person</label>
+        <select class="form-select" id="vm-person">
+          <option value="">Family / All</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Document Name *</label>
+      <input type="text" class="form-control" id="vm-name" placeholder="PAN Card, Aadhaar, Passport...">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Document Number</label>
+        <input type="text" class="form-control" id="vm-num" placeholder="e.g. ABCDE1234F">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Issued By</label>
+        <input type="text" class="form-control" id="vm-issuer" placeholder="e.g. Income Tax Dept">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Issue Date</label>
+        <input type="date" class="form-control" id="vm-issue">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Expiry Date</label>
+        <input type="date" class="form-control" id="vm-expiry">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Upload Files</label>
+      <div class="upload-zone" id="vm-upload-zone">
+        <i class="bi bi-cloud-upload"></i>
+        <p>Tap to upload PDF or image</p>
+        <input type="file" id="vm-files" multiple accept="image/*,application/pdf" style="display:none;">
+      </div>
+      <div class="file-list" id="vm-file-list"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-control" id="vm-desc" rows="2"></textarea>
+    </div>
+    <div class="modal-footer-btns">
+      <button class="btn-danger" id="vm-del-btn" style="display:none;" onclick="deleteVaultDoc()">Delete</button>
+      <button class="btn-secondary-brand" onclick="closeModal('vault-modal')">Cancel</button>
+      <button class="btn-primary-brand" onclick="saveVaultDoc()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail View Modal (generic) -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="detail-modal-content"></div>
+    <div class="modal-footer-btns" id="detail-modal-footer"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
