@@ -63,10 +63,26 @@ def main():
         ).execute()
         print(f"Added sheets: {[r['addSheet']['properties']['title'] for r in requests]}")
 
-    # 3. Add headers to all sheets
+    # 3. Add headers to all sheets safely
     for tab_name, columns in TABLES.items():
+        # Fetch existing headers
+        try:
+            res = sheets_service.spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id,
+                range=f"{tab_name}!1:1"
+            ).execute()
+            existing_headers = res.get('values', [[]])[0]
+        except Exception:
+            existing_headers = []
+
+        # Merge required columns without losing existing ones
+        new_headers = list(existing_headers)
+        for col in columns:
+            if col not in new_headers:
+                new_headers.append(col)
+
         body = {
-            "values": [columns]
+            "values": [new_headers]
         }
         sheets_service.spreadsheets().values().update(
             spreadsheetId=spreadsheet_id,
@@ -75,8 +91,6 @@ def main():
             body=body
         ).execute()
         print(f"Updated headers for {tab_name}")
-        
-    print("Google Sheets setup complete!")
 
 if __name__ == '__main__':
     main()
