@@ -22,3 +22,12 @@ __pycache__/
 
 # Local Mock Database/Files
 mock_nammane.xlsx
+
+# User Uploads
+static/uploads/*
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
