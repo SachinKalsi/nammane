@@ -31,3 +31,5 @@ static/uploads/*
 *.png
 *.gif
 *.webp
+*.csv
+*.xlsx
