@@ -12,6 +12,7 @@ let S = {
   medicines: [],
   insurance: [],
   vault:     [],
+  attachments: [],
   // filter states
   homeMedPid:   'all',
   repPid:       'all',
@@ -165,12 +166,12 @@ async function api(path, opts={}) {
 
 async function loadAll() {
   try {
-    const [people,entries,medicines,insurance,vault] = await Promise.all([
+    const [people,entries,medicines,insurance,vault,attachments] = await Promise.all([
       api('/api/people'), api('/api/entries'), api('/api/medicines'),
-      api('/api/insurance'), api('/api/vault')
+      api('/api/insurance'), api('/api/vault'), api('/api/attachments')
     ]);
     S.people=people; S.entries=entries; S.medicines=medicines;
-    S.insurance=insurance; S.vault=vault;
+    S.insurance=insurance; S.vault=vault; S.attachments=attachments||[];
   } catch(e) { toast('Error loading data: '+e.message,'err'); }
 }
 
@@ -455,7 +456,11 @@ $('search-input').addEventListener('input', e => {
   const match = (obj, fields) => fields.some(f=>(obj[f]||'').toLowerCase().includes(q));
 
   const people  = S.people.filter(p=>match(p,['name','relation','allergies','description']));
-  const entries = S.entries.filter(e=>match(e,['name','doctor','hospital','description']));
+  const entries = S.entries.filter(e => {
+    if (match(e, ['name', 'doctor', 'hospital', 'description'])) return true;
+    const atts = S.attachments.filter(a => a.entry_id === e.id);
+    return atts.some(a => match(a, ['name', 'description', 'value']));
+  });
   const meds    = S.medicines.filter(m=>match(m,['medicine_name','purpose','notes']));
   const ins     = S.insurance.filter(i=>match(i,['provider','policy_name','policy_number','notes']));
   const vault   = S.vault.filter(d=>match(d,['name','document_number','description']));
