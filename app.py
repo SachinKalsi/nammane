@@ -149,6 +149,15 @@ def get_entry_full(entry_id):
     })
 
 # ---------------------------------------------------------
+# API ROUTES: ATTACHMENTS
+# ---------------------------------------------------------
+
+@app.route('/api/attachments', methods=['GET'])
+@login_required
+def get_attachments():
+    return jsonify(data_service.get_records('Health_Attachments'))
+
+# ---------------------------------------------------------
 # API ROUTES: MEDICINES
 # ---------------------------------------------------------
 
