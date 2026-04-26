@@ -147,7 +147,7 @@
         <i class="bi bi-plus-lg me-1"></i>Add
       </button>
     </div>
-    <div class="filter-strip" id="vault-cat-filter"></div>
+    <div class="filter-strip" id="vault-class-filter" style="margin-bottom:8px;"></div>
     <div class="filter-strip" id="vault-person-filter"></div>
     <div id="vault-list">
       <div class="empty-state"><i class="bi bi-folder2"></i><p>No documents yet</p></div>
@@ -449,35 +449,46 @@
     <div class="modal-handle"></div>
     <div class="modal-title" id="vault-modal-title">Add Document</div>
     <input type="hidden" id="vm-id">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="form-group">
-        <label class="form-label">Category *</label>
-        <select class="form-select" id="vm-cat">
-          <option>Identity</option><option>Property</option>
-          <option>Vehicle</option><option>Other</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Person</label>
-        <select class="form-select" id="vm-person">
-          <option value="">Family / All</option>
-        </select>
-      </div>
+
+    <div style="display:flex;gap:20px;margin-bottom:15px;padding:4px;" id="vm-class-toggle">
+      <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="vm_class" value="Personal" checked style="width:16px;height:16px;accent-color:var(--brand);"> Personal</label>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="vm_class" value="Medical" style="width:16px;height:16px;accent-color:var(--brand);"> Medical</label>
     </div>
+
     <div class="form-group">
-      <label class="form-label">Document Name *</label>
-      <input type="text" class="form-control" id="vm-name" placeholder="PAN Card, Aadhaar, Passport...">
+      <label class="form-label">Person</label>
+      <select class="form-select" id="vm-person">
+        <option value="">Family / All</option>
+      </select>
     </div>
+
+    <div class="form-group" id="vm-type-group">
+      <label class="form-label">Document Type *</label>
+      <select class="form-select" id="vm-type">
+        <option>Aadhar card</option><option>PAN card</option>
+        <option>Driving licence</option><option>Election Voter ID card</option>
+        <option>Passport</option><option>Photo</option><option>Signature</option>
+        <option>Senior Card</option><option value="Other">Other</option>
+      </select>
+      <input type="text" class="form-control" id="vm-name-custom" placeholder="Type document name" style="margin-top:8px;display:none;">
+    </div>
+
+    <div class="form-group" id="vm-name-group" style="display:none;">
+      <label class="form-label">Document Name *</label>
+      <input type="text" class="form-control" id="vm-name" placeholder="e.g. Lab Report, Discharge Summary">
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="form-group">
-        <label class="form-label">Document Number</label>
+      <div class="form-group" id="vm-num-group">
+        <label class="form-label">Unique ID / Number</label>
         <input type="text" class="form-control" id="vm-num" placeholder="e.g. ABCDE1234F">
       </div>
-      <div class="form-group">
+      <div class="form-group" id="vm-issuer-group" style="display:none;">
         <label class="form-label">Issued By</label>
-        <input type="text" class="form-control" id="vm-issuer" placeholder="e.g. Income Tax Dept">
+        <input type="text" class="form-control" id="vm-issuer" placeholder="e.g. Apollo Hospital">
       </div>
     </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="form-group">
         <label class="form-label">Issue Date</label>
@@ -489,7 +500,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Upload Files</label>
+      <label class="form-label">Upload Doc</label>
       <div class="upload-zone" id="vm-upload-zone">
         <i class="bi bi-cloud-upload"></i>
         <p>Tap to upload PDF or image</p>
@@ -498,7 +509,7 @@
       <div class="file-list" id="vm-file-list"></div>
     </div>
     <div class="form-group">
-      <label class="form-label">Notes</label>
+      <label class="form-label">Description / Notes</label>
       <textarea class="form-control" id="vm-desc" rows="2"></textarea>
     </div>
     <div class="modal-footer-btns">

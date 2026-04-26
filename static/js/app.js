@@ -18,7 +18,7 @@ let S = {
   repPid:       'all',
   medPid:       'all',
   insPid:       'all',
-  vaultCat:     'All',
+  vaultClass:   'Personal',
   vaultPid:     'all',
   repLimit:     5,
   medLimit:     5,
@@ -213,13 +213,14 @@ function rebuildPersonFilters() {
   buildFilterStrip('ins-filter', S.insPid, pid=>{ S.insPid=pid; renderInsurancePage(); });
   buildFilterStrip('rep-filter', S.repPid, pid=>{ S.repPid=pid; S.repLimit=5; renderReportsPage(); });
   buildFilterStrip('med-filter', S.medPid, pid=>{ S.medPid=pid; S.medLimit=5; renderMedicinesPage(); });
-  // vault category filter
-  const vcf = $('vault-cat-filter');
+  // vault class filter
+  const vcf = $('vault-class-filter');
   if(vcf) {
-    vcf.innerHTML = VAULT_CATS.map(c=>`<button class="fpill ${S.vaultCat===c?'active':''}" data-cat="${c}">${c}</button>`).join('');
+    const classes = ['Personal', 'Medical'];
+    vcf.innerHTML = classes.map(c=>`<button class="fpill ${S.vaultClass===c?'active':''}" data-cat="${c}">${c}</button>`).join('');
     vcf.querySelectorAll('.fpill').forEach(btn=>btn.addEventListener('click',()=>{
       vcf.querySelectorAll('.fpill').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active'); S.vaultCat=btn.dataset.cat; renderVaultPage();
+      btn.classList.add('active'); S.vaultClass=btn.dataset.cat; renderVaultPage();
     }));
   }
   buildFilterStrip('vault-person-filter', S.vaultPid, pid=>{ S.vaultPid=pid; renderVaultPage(); });
@@ -438,7 +439,7 @@ function loadMoreMeds() { S.medLimit+=10; renderMedicinesPage(); }
 // ════════════════════════════════════════════════════════
 function renderVaultPage() {
   let list = [...S.vault];
-  if(S.vaultCat!=='All') list=list.filter(d=>d.category===S.vaultCat);
+  list=list.filter(d=>d.category===S.vaultClass);
   if(S.vaultPid!=='all') list=list.filter(d=>d.person_id===S.vaultPid);
   const el = $('vault-list');
   if(!list.length){ el.innerHTML='<div class="empty-state"><i class="bi bi-folder2"></i><p>No documents found</p></div>'; return; }
@@ -984,8 +985,28 @@ function openVaultModal(vid=null) {
   const d = vid ? S.vault.find(x=>x.id===vid) : null;
   $('vault-modal-title').textContent = d ? 'Edit Document' : 'Add Document';
   $('vm-id').value     = d?.id||'';
-  $('vm-cat').value    = d?.category||'Identity';
-  $('vm-name').value   = d?.name||'';
+  
+  let vClass = d?.category || S.vaultClass || 'Personal';
+  if (['Identity', 'Property', 'Vehicle', 'Other'].includes(vClass)) vClass = 'Personal';
+  const radio = document.querySelector(`input[name="vm_class"][value="${vClass}"]`);
+  if (radio) radio.checked = true;
+  
+  if (vClass === 'Personal') {
+    const predefined = ['Aadhar card','PAN card','Driving licence','Election Voter ID card','Passport','Photo','Signature','Senior Card'];
+    if (d && d.name && !predefined.includes(d.name)) {
+      $('vm-type').value = 'Other';
+      $('vm-name-custom').value = d.name;
+    } else {
+      $('vm-type').value = d?.name || 'Aadhar card';
+      $('vm-name-custom').value = '';
+    }
+    $('vm-name').value = '';
+  } else {
+    $('vm-name').value = d?.name || '';
+  }
+  
+  if (radio) radio.dispatchEvent(new Event('change'));
+  $('vm-type').dispatchEvent(new Event('change'));
   $('vm-num').value    = d?.document_number||'';
   $('vm-issuer').value = d?.issued_by||'';
   $('vm-issue').value  = d?.issue_date||'';
@@ -1012,12 +1033,30 @@ function renderVaultExistingFiles() {
   $('vm-file-list').innerHTML = ex + nw;
 }
 
+document.querySelectorAll('input[name="vm_class"]').forEach(radio => {
+  radio.addEventListener('change', e => {
+    const isPersonal = e.target.value === 'Personal';
+    $('vm-type-group').style.display = isPersonal ? 'block' : 'none';
+    $('vm-name-group').style.display = isPersonal ? 'none' : 'block';
+    $('vm-issuer-group').style.display = isPersonal ? 'none' : 'block';
+  });
+});
+$('vm-type').addEventListener('change', e => {
+  $('vm-name-custom').style.display = e.target.value === 'Other' ? 'block' : 'none';
+});
+
 async function saveVaultDoc() {
-  const name = $('vm-name').value.trim();
+  const vClass = document.querySelector('input[name="vm_class"]:checked').value;
+  let name = '';
+  if (vClass === 'Personal') {
+    name = $('vm-type').value === 'Other' ? $('vm-name-custom').value.trim() : $('vm-type').value;
+  } else {
+    name = $('vm-name').value.trim();
+  }
   if(!name){ toast('Document name required','warn'); return; }
   const fd = new FormData();
   fd.append('id', $('vm-id').value||genId());
-  fd.append('category', $('vm-cat').value);
+  fd.append('category', vClass);
   fd.append('person_id', $('vm-person').value);
   fd.append('name', name);
   fd.append('document_number', $('vm-num').value);
