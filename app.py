@@ -11,13 +11,7 @@ load_dotenv()
 app = Flask(__name__)
 READ_PIN = os.environ.get('READ_PIN', '1111')
 WRITE_PIN = os.environ.get('WRITE_PIN', '2222')
-EXEC_MODE = os.environ.get('EXECUTION_MODE', 'mock')
-
-# Load the correct service
-if EXEC_MODE == 'mock':
-    from services.mock_excel_service import DataService
-else:
-    from services.google_svc import DataService
+from services.google_svc import DataService
 
 data_service = DataService()
 

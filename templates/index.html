@@ -11,7 +11,522 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>
+/* ── Variables ─────────────────────────────────────────────────────────── */
+:root {
+  --brand:       #1a3a2a;
+  --brand-mid:   #2d5c42;
+  --brand-light: #e8f2ec;
+  --accent:      #c8873a;
+  --accent-light:#fdf3e7;
+  --surface:     #f5f3ef;
+  --card:        #ffffff;
+  --border:      #e4e0d8;
+  --text:        #1c1c1e;
+  --muted:       #6b7566;
+  --danger:      #c0392b;
+  --warning:     #d97706;
+  --radius:      12px;
+  --radius-lg:   18px;
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--surface);
+  color: var(--text);
+  min-height: 100dvh;
+}
+h1,h2,h3,h4 { font-family: 'Lora', serif; }
+
+/* ── Login ─────────────────────────────────────────────────────────────── */
+#login-screen {
+  min-height: 100dvh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--brand);
+  padding: 24px;
+  position: relative; overflow: hidden;
+}
+#login-screen::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 30% 20%, rgba(200,135,58,0.15) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 80%, rgba(255,255,255,0.04) 0%, transparent 50%);
+}
+.login-logo {
+  font-family: 'Lora', serif;
+  color: #fff; font-size: 1.8rem; font-weight: 600;
+  letter-spacing: -0.5px; margin-bottom: 4px;
+  position: relative; z-index: 1;
+}
+.login-sub {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8rem; margin-bottom: 36px;
+  position: relative; z-index: 1;
+}
+.pin-card {
+  background: #fff; border-radius: 24px;
+  padding: 28px 24px; width: 100%; max-width: 320px;
+  position: relative; z-index: 1;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+}
+.pin-label {
+  font-size: 0.78rem; font-weight: 500;
+  color: var(--muted); text-align: center; margin-bottom: 20px;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.pin-dots {
+  display: flex; justify-content: center; gap: 14px; margin-bottom: 28px;
+}
+.pin-dot {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid var(--border); background: transparent;
+  transition: all 0.2s ease;
+}
+.pin-dot.filled { background: var(--brand); border-color: var(--brand); transform: scale(1.1); }
+.pin-pad {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+}
+.pin-btn {
+  aspect-ratio: 1; border: 1.5px solid var(--border);
+  background: var(--surface); border-radius: var(--radius);
+  font-size: 1.25rem; font-weight: 600; color: var(--brand);
+  cursor: pointer; transition: all 0.12s;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Lora', serif;
+}
+.pin-btn:active { background: var(--brand); color: #fff; border-color: var(--brand); transform: scale(0.94); }
+.pin-error { color: var(--danger); font-size: 0.78rem; text-align: center; margin-top: 12px; min-height: 18px; }
+
+/* ── App Shell ─────────────────────────────────────────────────────────── */
+#app { display: none; }
+
+.topbar {
+  background: var(--brand); color: #fff;
+  padding: 14px 16px 12px;
+  padding-top: calc(14px + env(safe-area-inset-top));
+  position: sticky; top: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.topbar-title {
+  font-family: 'Lora', serif;
+  font-size: 1.1rem; font-weight: 600; letter-spacing: -0.3px;
+}
+.topbar-title span { color: var(--accent); }
+.topbar-actions { display: flex; gap: 6px; }
+.topbar-btn {
+  background: rgba(255,255,255,0.12); border: none; color: #fff;
+  width: 34px; height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1rem; transition: background 0.15s;
+}
+.topbar-btn:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Bottom Nav ────────────────────────────────────────────────────────── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--card); border-top: 1px solid var(--border);
+  display: flex; z-index: 200;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; padding: 9px 4px 7px;
+  border: none; background: none; color: #aaa;
+  font-size: 0.62rem; font-weight: 500; gap: 3px;
+  cursor: pointer; transition: color 0.15s; font-family: 'DM Sans', sans-serif;
+}
+.nav-btn i { font-size: 1.25rem; line-height: 1; }
+.nav-btn.active { color: var(--brand); }
+.nav-btn.active i { font-weight: 800; }
+
+/* ── Pages ─────────────────────────────────────────────────────────────── */
+.page { display: none; padding: 16px; padding-bottom: 90px; animation: fadeIn 0.2s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ── Section headers ───────────────────────────────────────────────────── */
+.section-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; margin-top: 20px;
+}
+.section-hd:first-child { margin-top: 0; }
+.section-title {
+  font-family: 'Lora', serif; font-size: 1rem;
+  font-weight: 600; color: var(--brand);
+}
+.view-all-btn {
+  font-size: 0.72rem; color: var(--accent);
+  font-weight: 600; background: none; border: none;
+  cursor: pointer; padding: 0; text-decoration: none;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────── */
+.card-base {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+}
+.card-tap { cursor: pointer; transition: box-shadow 0.15s, transform 0.12s; }
+.card-tap:active { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: scale(0.99); }
+
+/* ── People cards ──────────────────────────────────────────────────────── */
+.btn-xs {
+  font-size: 0.72rem; font-weight: 600; padding: 4px 10px;
+  border-radius: 7px; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--brand); cursor: pointer;
+  transition: all 0.12s; white-space: nowrap;
+}
+.btn-xs:hover { background: var(--brand-light); border-color: var(--brand); }
+.btn-xs.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.btn-xs.primary:hover { background: var(--brand-mid); }
+
+/* People table */
+.people-table { width: 100%; border-collapse: collapse; }
+.people-table th {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--muted);
+  padding: 8px 12px; border-bottom: 2px solid var(--border);
+  text-align: left; background: var(--surface);
+}
+.people-table td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 0.85rem; }
+.people-table tr:last-child td { border-bottom: none; }
+.people-table tbody tr:hover { background: #fafaf8; }
+.person-name-cell { font-weight: 600; color: var(--text); }
+.person-rel { font-size: 0.7rem; color: var(--muted); margin-top: 1px; }
+.meds-cell { color: var(--brand-mid); font-size: 0.78rem; line-height: 1.5; }
+.meds-cell.none { color: var(--muted); font-style: italic; }
+.add-person-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-top: 1px dashed var(--border);
+  cursor: pointer; color: var(--brand-mid); font-size: 0.82rem;
+  font-weight: 600; transition: background 0.15s;
+}
+.add-person-row:hover { background: var(--brand-light); }
+
+/* Insurance table */
+.ins-table { width: 100%; border-collapse: collapse; }
+.ins-table th {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--muted);
+  padding: 8px 12px; border-bottom: 2px solid var(--border);
+  text-align: left; background: var(--surface);
+}
+.ins-table td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 0.85rem; }
+.ins-table tr:last-child td { border-bottom: none; }
+.ins-table tbody tr:hover { background: #fafaf8; cursor: pointer; }
+.renew-ok   { color: var(--brand-mid); font-weight: 600; font-size: 0.78rem; }
+.renew-warn { color: var(--warning);   font-weight: 600; font-size: 0.78rem; }
+.renew-danger { color: var(--danger);  font-weight: 600; font-size: 0.78rem; }
+/* hide extra cols on mobile */
+@media (max-width: 600px) {
+  .ins-col-hide { display: none; }
+}
+
+/* ── Person filter strip ───────────────────────────────────────────────── */
+.filter-strip { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; margin-bottom: 12px; }
+.filter-strip::-webkit-scrollbar { display: none; }
+.fpill {
+  white-space: nowrap; flex-shrink: 0;
+  border: 1.5px solid var(--border); background: var(--card);
+  border-radius: 20px; padding: 5px 14px;
+  font-size: 0.76rem; font-weight: 600; cursor: pointer;
+  transition: all 0.15s; color: var(--muted);
+}
+.fpill.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+/* ── Medicine row ──────────────────────────────────────────────────────── */
+.med-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.med-row:last-child { border-bottom: none; }
+.med-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 5px; flex-shrink: 0; }
+.med-name { font-weight: 600; font-size: 0.85rem; color: var(--text); }
+.med-meta { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+
+/* ── Insurance cards ───────────────────────────────────────────────────── */
+.ins-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+  cursor: pointer; transition: box-shadow 0.15s;
+  border-left: 4px solid var(--brand);
+}
+.ins-card.warn { border-left-color: var(--warning); }
+.ins-card.danger { border-left-color: var(--danger); }
+.ins-name { font-weight: 600; font-size: 0.9rem; }
+.ins-meta { font-size: 0.74rem; color: var(--muted); margin-top: 3px; }
+.ins-due { font-size: 0.72rem; font-weight: 600; margin-top: 6px; }
+.ins-due.warn { color: var(--warning); }
+.ins-due.danger { color: var(--danger); }
+.ins-due.ok { color: var(--brand-mid); }
+
+/* ── Vault doc cards ───────────────────────────────────────────────────── */
+.vault-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px;
+  cursor: pointer; transition: box-shadow 0.15s;
+}
+.vault-icon {
+  width: 38px; height: 38px; border-radius: 9px;
+  background: var(--accent-light); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; flex-shrink: 0;
+}
+.vault-name { font-weight: 600; font-size: 0.85rem; }
+.vault-meta { font-size: 0.7rem; color: var(--muted); margin-top: 1px; }
+
+/* ── Table list ────────────────────────────────────────────────────────── */
+.entry-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; }
+.entry-table th {
+  font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--muted);
+  padding: 6px 8px; border-bottom: 2px solid var(--border);
+  text-align: left; background: var(--surface);
+}
+.entry-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.entry-table tr:last-child td { border-bottom: none; }
+.entry-table tbody tr { cursor: pointer; transition: background 0.1s; }
+.entry-table tbody tr:hover { background: var(--surface); }
+.table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; overflow-x: auto; }
+
+/* ── Forms ─────────────────────────────────────────────────────────────── */
+.form-label { font-size: 0.76rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
+.form-control, .form-select {
+  font-size: 0.875rem; border-radius: 9px;
+  border: 1.5px solid var(--border);
+  background: var(--card); padding: 9px 12px;
+  color: var(--text); font-family: 'DM Sans', sans-serif;
+  width: 100%; transition: border-color 0.15s;
+}
+.form-control:focus, .form-select:focus {
+  outline: none; border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(26,58,42,0.08);
+}
+textarea.form-control { resize: vertical; min-height: 80px; }
+.form-group { margin-bottom: 14px; }
+
+/* ── Repeatable rows ───────────────────────────────────────────────────── */
+.repeat-section {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 14px;
+}
+.repeat-section-title {
+  font-family: 'Lora', serif; font-size: 0.88rem;
+  font-weight: 600; color: var(--brand); margin-bottom: 10px;
+}
+.repeat-row {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px; margin-bottom: 8px;
+  position: relative;
+}
+.remove-row-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 1rem; padding: 2px 6px;
+  border-radius: 6px; transition: all 0.12s;
+}
+.remove-row-btn:hover { background: #fde8e8; color: var(--danger); }
+.add-row-btn {
+  width: 100%; padding: 9px; border: 1.5px dashed var(--border);
+  background: transparent; border-radius: 9px; color: var(--brand-mid);
+  font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+}
+.add-row-btn:hover { border-color: var(--brand); background: var(--brand-light); }
+
+/* ── When-to-take chips ────────────────────────────────────────────────── */
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 4px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--card); cursor: pointer;
+  color: var(--muted); transition: all 0.12s;
+}
+.chip.selected { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn-primary-brand {
+  background: var(--brand); color: #fff; border: none;
+  border-radius: var(--radius); padding: 12px 20px;
+  font-size: 0.88rem; font-weight: 600; cursor: pointer;
+  width: 100%; font-family: 'DM Sans', sans-serif;
+  transition: background 0.15s;
+}
+.btn-primary-brand:hover { background: var(--brand-mid); }
+.btn-primary-brand:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary-brand {
+  background: var(--brand-light); color: var(--brand); border: 1.5px solid #b8d4c2;
+  border-radius: var(--radius); padding: 10px 16px;
+  font-size: 0.83rem; font-weight: 600; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+}
+.btn-secondary-brand:hover { background: #d4e8da; }
+.btn-danger {
+  background: #fde8e8; color: var(--danger); border: 1.5px solid #f5c6c6;
+  border-radius: var(--radius); padding: 10px 16px;
+  font-size: 0.83rem; font-weight: 600; cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ── Upload zone ───────────────────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  background: var(--surface); text-align: center; padding: 22px 16px;
+  cursor: pointer; transition: all 0.2s;
+}
+.upload-zone.drag-over { border-color: var(--brand); background: var(--brand-light); }
+.upload-zone i { font-size: 1.8rem; color: var(--brand-mid); display: block; margin-bottom: 6px; }
+.upload-zone p { font-size: 0.78rem; color: var(--muted); margin: 0; }
+.file-list { margin-top: 8px; }
+.file-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px; margin-bottom: 5px; font-size: 0.78rem;
+}
+.file-item i { color: var(--accent); }
+.file-item-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-item-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 0 2px; }
+
+/* ── Overlay + Toast ───────────────────────────────────────────────────── */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(255,255,255,0.88); z-index: 9000;
+  flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+}
+.overlay.show { display: flex; }
+.overlay-spinner {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--brand);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.overlay-msg { font-size: 0.85rem; font-weight: 600; color: var(--brand); }
+.overlay-bar-wrap { width: 160px; height: 4px; background: var(--border); border-radius: 10px; overflow: hidden; }
+.overlay-bar { height: 100%; background: var(--brand); border-radius: 10px; transition: width 0.4s; width: 0%; }
+
+.toast-wrap { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); z-index: 9999; }
+.toast-msg {
+  background: var(--brand); color: #fff; border-radius: 20px;
+  padding: 10px 20px; font-size: 0.82rem; font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  opacity: 0; transform: translateY(8px);
+  transition: all 0.25s; pointer-events: none; white-space: nowrap;
+}
+.toast-msg.show { opacity: 1; transform: none; }
+.toast-msg.err { background: var(--danger); }
+.toast-msg.warn { background: var(--warning); }
+
+/* ── Modal ─────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 500;
+  align-items: flex-end; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal-sheet {
+  background: var(--card); border-radius: 22px 22px 0 0;
+  width: 100%; max-width: 600px; max-height: 92dvh;
+  overflow-y: auto; padding: 20px 20px 40px;
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.modal-handle {
+  width: 40px; height: 4px; background: var(--border);
+  border-radius: 10px; margin: 0 auto 18px;
+}
+.modal-title {
+  font-family: 'Lora', serif; font-size: 1.1rem;
+  font-weight: 600; color: var(--brand); margin-bottom: 18px;
+}
+.modal-footer-btns { display: flex; gap: 8px; margin-top: 16px; }
+.modal-footer-btns > * { flex: 1; }
+
+/* ── Detail page ───────────────────────────────────────────────────────── */
+.detail-hd {
+  background: var(--brand); color: #fff;
+  padding: 16px; padding-top: calc(16px + env(safe-area-inset-top));
+  margin: -16px -16px 16px;
+}
+.detail-hd h2 { font-family: 'Lora', serif; font-size: 1.2rem; font-weight: 600; }
+.detail-hd .meta { font-size: 0.75rem; opacity: 0.7; margin-top: 3px; }
+.detail-section { margin-bottom: 20px; }
+.detail-section-title {
+  font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px;
+}
+.detail-row { display: flex; gap: 8px; font-size: 0.82rem; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.detail-row:last-child { border-bottom: none; }
+.detail-label { color: var(--muted); min-width: 110px; font-weight: 500; }
+.detail-val { color: var(--text); flex: 1; }
+.detail-actions { display: flex; gap: 8px; margin-bottom: 16px; }
+.detail-actions > * { flex: 1; }
+
+/* ── Badge ─────────────────────────────────────────────────────────────── */
+.badge-cat {
+  display: inline-block; font-size: 0.65rem; font-weight: 600;
+  padding: 2px 8px; border-radius: 20px;
+  background: var(--brand-light); color: var(--brand);
+}
+.badge-ongoing { background: #e8f5e9; color: #2e7d32; }
+.badge-stopped { background: var(--surface); color: var(--muted); }
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center; padding: 40px 20px; color: var(--muted);
+}
+.empty-state i { font-size: 2.5rem; opacity: 0.25; display: block; margin-bottom: 10px; }
+.empty-state p { font-size: 0.83rem; }
+
+/* ── Page sub-header (for tab pages) ───────────────────────────────────── */
+.page-subhd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.page-subhd h2 { font-family: 'Lora', serif; font-size: 1.1rem; font-weight: 600; color: var(--brand); }
+
+/* ── Multi-select people ───────────────────────────────────────────────── */
+.people-multiselect { display: flex; flex-wrap: wrap; gap: 6px; }
+.people-chip {
+  padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--card); cursor: pointer;
+  color: var(--muted); transition: all 0.12s;
+}
+.people-chip.selected { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+/* ── Desktop layout ──────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .bottom-nav {
+    position: fixed; left: 0; top: 0; bottom: 0; right: auto;
+    flex-direction: column; width: 200px; border-top: none;
+    border-right: 1px solid var(--border);
+    padding: 72px 0 20px; justify-content: flex-start;
+  }
+  .nav-btn {
+    flex-direction: row; justify-content: flex-start;
+    padding: 13px 20px; gap: 12px; font-size: 0.85rem;
+    border-radius: 0; width: 100%;
+  }
+  .nav-btn i { font-size: 1.1rem; }
+  .nav-btn.active {
+    background: var(--brand-light); color: var(--brand);
+    border-left: 3px solid var(--brand);
+  }
+  .topbar { padding-left: 220px; }
+  .page { margin-left: 200px; padding: 24px 32px 40px; }
+  .toast-wrap { left: calc(200px + 50%); transform: translateX(-50%); }
+  .modal-overlay { align-items: center; }
+  .modal-sheet {
+    border-radius: 18px; max-width: 560px;
+    width: 100%; max-height: 88dvh; margin: 0 auto;
+  }
+  .modal-handle { display: none; }
+  .entry-table th, .entry-table td,
+  .people-table th, .people-table td,
+  .ins-table th, .ins-table td { padding: 12px 16px; font-size: 0.88rem; }
+}
+</style>
 </head>
 <body>
 
@@ -73,6 +588,7 @@
 
   <!-- ── PAGE: HOME ─────────────────────────────────────── -->
   <div class="page active" id="page-home">
+    <div class="filter-strip global-person-filter" style="margin-top:-8px;margin-bottom:16px;"></div>
 
     <!-- People -->
     <div class="section-hd" style="margin-top:0;">
@@ -89,10 +605,17 @@
       </div>
     </div>
 
+    <!-- Medicines Preview -->
+    <div class="section-hd">
+      <div class="section-title">Medicines</div>
+    </div>
+    <div id="home-meds-list"></div>
 
-
-
-
+    <!-- Vault Preview -->
+    <div class="section-hd">
+      <div class="section-title">Personal Docs</div>
+    </div>
+    <div id="home-vault-list" style="margin-bottom:20px;"></div>
   </div><!-- /page-home -->
 
   <!-- ── PAGE: INSURANCE ───────────────────────────────── -->
@@ -103,7 +626,7 @@
         <i class="bi bi-plus-lg me-1"></i>Add
       </button>
     </div>
-    <div class="filter-strip" id="ins-filter"></div>
+    <div class="filter-strip global-person-filter"></div>
     <div id="insurance-list">
       <div class="empty-state"><i class="bi bi-shield"></i><p>No insurance policies yet</p></div>
     </div>
@@ -117,7 +640,7 @@
         <i class="bi bi-plus-lg me-1"></i>Add
       </button>
     </div>
-    <div class="filter-strip" id="rep-filter"></div>
+    <div class="filter-strip global-person-filter"></div>
     <div id="reports-list"></div>
     <div style="text-align:center;margin-top:10px;" id="rep-viewall-wrap" style="display:none;">
       <button class="view-all-btn" id="rep-viewall-btn" onclick="loadMoreReports()">Load more →</button>
@@ -132,7 +655,7 @@
         <i class="bi bi-plus-lg me-1"></i>Add
       </button>
     </div>
-    <div class="filter-strip" id="med-filter"></div>
+    <div class="filter-strip global-person-filter"></div>
     <div id="medicines-list"></div>
     <div style="text-align:center;margin-top:10px;">
       <button class="view-all-btn" id="med-viewall-btn" onclick="loadMoreMeds()">Load more →</button>
@@ -142,13 +665,12 @@
   <!-- ── PAGE: VAULT ───────────────────────────────────── -->
   <div class="page" id="page-vault">
     <div class="page-subhd">
-      <h2>Documents Vault</h2>
+      <h2>Personal Docs</h2>
       <button class="btn-secondary-brand" onclick="openVaultModal()">
         <i class="bi bi-plus-lg me-1"></i>Add
       </button>
     </div>
-    <div class="filter-strip" id="vault-class-filter" style="margin-bottom:8px;"></div>
-    <div class="filter-strip" id="vault-person-filter"></div>
+    <div class="filter-strip global-person-filter"></div>
     <div id="vault-list">
       <div class="empty-state"><i class="bi bi-folder2"></i><p>No documents yet</p></div>
     </div>
@@ -175,10 +697,13 @@
       <i class="bi bi-shield-fill"></i>Insurance
     </button>
     <button class="nav-btn" id="nav-reports" onclick="showPage('page-reports')">
-      <i class="bi bi-file-medical-fill"></i>Reports
+      <i class="bi bi-file-medical-fill"></i>Medical Reports
     </button>
     <button class="nav-btn" id="nav-medicines" onclick="showPage('page-medicines')">
       <i class="bi bi-capsule-pill"></i>Medicines
+    </button>
+    <button class="nav-btn" id="nav-vault" onclick="showPage('page-vault')">
+      <i class="bi bi-folder-fill"></i>Docs
     </button>
   </nav>
 
@@ -450,11 +975,6 @@
     <div class="modal-title" id="vault-modal-title">Add Document</div>
     <input type="hidden" id="vm-id">
 
-    <div style="display:flex;gap:20px;margin-bottom:15px;padding:4px;" id="vm-class-toggle">
-      <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="vm_class" value="Personal" checked style="width:16px;height:16px;accent-color:var(--brand);"> Personal</label>
-      <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;"><input type="radio" name="vm_class" value="Medical" style="width:16px;height:16px;accent-color:var(--brand);"> Medical</label>
-    </div>
-
     <div class="form-group">
       <label class="form-label">Person</label>
       <select class="form-select" id="vm-person">
@@ -473,20 +993,9 @@
       <input type="text" class="form-control" id="vm-name-custom" placeholder="Type document name" style="margin-top:8px;display:none;">
     </div>
 
-    <div class="form-group" id="vm-name-group" style="display:none;">
-      <label class="form-label">Document Name *</label>
-      <input type="text" class="form-control" id="vm-name" placeholder="e.g. Lab Report, Discharge Summary">
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="form-group" id="vm-num-group">
-        <label class="form-label">Unique ID / Number</label>
-        <input type="text" class="form-control" id="vm-num" placeholder="e.g. ABCDE1234F">
-      </div>
-      <div class="form-group" id="vm-issuer-group" style="display:none;">
-        <label class="form-label">Issued By</label>
-        <input type="text" class="form-control" id="vm-issuer" placeholder="e.g. Apollo Hospital">
-      </div>
+    <div class="form-group" id="vm-num-group">
+      <label class="form-label">Unique ID / Number</label>
+      <input type="text" class="form-control" id="vm-num" placeholder="e.g. ABCDE1234F">
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -530,6 +1039,1049 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// STATE & CONFIG
+// ════════════════════════════════════════════════════════
+const API = window.location.origin;
+const WHEN_OPTIONS = ['Morning','Afternoon','Night','Before food','After food'];
+const VAULT_CATS   = ['All','Identity','Property','Vehicle','Other'];
+const CAT_ICONS    = { Identity:'bi-person-vcard', Property:'bi-house', Vehicle:'bi-car-front', Other:'bi-folder' };
+
+let S = {
+  people:    [],
+  entries:   [],
+  medicines: [],
+  insurance: [],
+  vault:     [],
+  attachments: [],
+  // filter states
+  globalPid:     'all',
+  repLimit:      5,
+  medLimit:      5,
+  // editing
+  editingPersonId:   null,
+  editingEntryId:    null,
+  editingMedId:      null,
+  editingInsId:      null,
+  editingVaultId:    null,
+  // temp files
+  insFiles:  [],
+  vaultFiles:[],
+};
+
+// ════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════
+const $  = id => document.getElementById(id);
+const fmtDate = d => { try { if(!d) return '—'; return new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); } catch { return d; } };
+const fmtMoney = n => n ? '₹'+Number(n).toLocaleString('en-IN') : '—';
+const genId = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)+Date.now().toString(36);
+const initials = n => (n||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const getPerson = id => S.people.find(p=>p.id===id) || {};
+const daysUntil = d => { if(!d) return 9999; return Math.ceil((new Date(d)-new Date())/(1000*60*60*24)); };
+
+function toast(msg, type='ok') {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'toast-msg show' + (type==='err'?' err':type==='warn'?' warn':'');
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>el.classList.remove('show'), 2600);
+}
+
+function overlay(show, msg='Saving...', pct=0) {
+  $('overlay').classList.toggle('show', show);
+  $('overlay-msg').textContent = msg;
+  $('overlay-bar').style.width = pct+'%';
+}
+
+function closeModal(id) {
+  $(id).classList.remove('show');
+}
+function openModal(id) {
+  $(id).classList.add('show');
+  $(id).addEventListener('click', e => { if(e.target === $(id)) closeModal(id); }, {once:true});
+}
+
+// ════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════
+let pin = '';
+function updateDots() {
+  for(let i=0;i<4;i++) $('d'+i).classList.toggle('filled', i < pin.length);
+}
+document.querySelector('.pin-pad').addEventListener('click', async e => {
+  const btn = e.target.closest('.pin-btn'); if(!btn) return;
+  const n = btn.dataset.n;
+  if(n==='clr') pin='';
+  else if(n==='del') pin=pin.slice(0,-1);
+  else if(pin.length<4) pin+=n;
+  updateDots(); $('pin-error').textContent='';
+  if(pin.length===4) await submitPin();
+});
+
+async function submitPin(autoPin = null) {
+  const p = autoPin || pin;
+  try {
+    const r = await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin: p})});
+    const d = await r.json();
+    if(r.ok) { 
+        S.currentPin = p; S.role = d.role; 
+        localStorage.setItem('nammane_pin', p);
+        
+        // Apply read-only stylings
+        if (!document.getElementById('ro-style')) {
+            const st = document.createElement('style');
+            st.id = 'ro-style';
+            st.innerHTML = `
+              body.role-read .primary { display: none !important; }
+              body.role-read .add-btn { display: none !important; }
+              body.role-read .btn-xs { display: none !important; }
+              body.role-read .btn-secondary-brand { display: none !important; }
+              body.role-read .section-hd button { display: none !important; }
+            `;
+            document.head.appendChild(st);
+        }
+        if(S.role === 'read') document.body.classList.add('role-read');
+        else document.body.classList.remove('role-read');
+
+        bootApp();
+    } else { 
+        $('pin-error').textContent='Wrong PIN. Try again.'; 
+        pin=''; updateDots(); 
+        if(autoPin) doLogout();
+    }
+  } catch { $('pin-error').textContent='Cannot reach server.'; pin=''; updateDots(); }
+}
+
+async function checkAuth() {
+  const savedPin = localStorage.getItem('nammane_pin');
+  if (savedPin) {
+    await submitPin(savedPin);
+  }
+}
+
+function doLogout() {
+  S.currentPin = null; S.role = null;
+  localStorage.removeItem('nammane_pin');
+  document.body.classList.remove('role-read');
+  $('app').style.display='none';
+  $('login-screen').style.display='flex';
+  pin=''; updateDots();
+}
+
+// ════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════
+async function bootApp() {
+  $('login-screen').style.display='none';
+  $('app').style.display='block';
+  overlay(true,'Loading your vault...',20);
+  await loadAll();
+  overlay(false);
+  renderAll();
+}
+
+function getProxyUrl(link) {
+  if(!link) return '';
+  const pin = S.currentPin || localStorage.getItem('nammane_pin') || '';
+  return API + '/api/drive/proxy?link=' + encodeURIComponent(link.trim()) + '&pin=' + encodeURIComponent(pin);
+}
+
+async function api(path, opts={}) {
+  const headers = new Headers(opts.headers || {});
+  if(S.currentPin) headers.append('X-Access-Pin', S.currentPin);
+  
+  const r = await fetch(API+path, { ...opts, headers });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function loadAll() {
+  try {
+    const [people,entries,medicines,insurance,vault,attachments] = await Promise.all([
+      api('/api/people'), api('/api/entries'), api('/api/medicines'),
+      api('/api/insurance'), api('/api/vault'), api('/api/attachments')
+    ]);
+    S.people=people; S.entries=entries; S.medicines=medicines;
+    S.insurance=insurance; S.vault=vault; S.attachments=attachments||[];
+  } catch(e) { toast('Error loading data: '+e.message,'err'); }
+}
+
+function renderAll() {
+  renderPeople();
+  renderInsurancePage();
+  renderReportsPage();
+  renderMedicinesPage();
+  renderVaultPage();
+  renderHomeMeds();
+  renderHomeVault();
+  rebuildPersonFilters();
+}
+
+// ════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  $(id).classList.add('active');
+  const map = {'page-home':'nav-home','page-insurance':'nav-insurance','page-reports':'nav-reports','page-medicines':'nav-medicines','page-vault':'nav-vault'};
+  if(map[id]) $(map[id]).classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════
+// PERSON FILTERS (shared utility)
+// ════════════════════════════════════════════════════════
+function buildFilterStrip(containerId, currentPid, onChange) {
+  const el = $(containerId); if(!el) return;
+  el.innerHTML = `<button class="fpill ${currentPid==='all'?'active':''}" data-pid="all">All</button>`
+    + S.people.map(p=>`<button class="fpill ${currentPid===p.id?'active':''}" data-pid="${p.id}">${p.name.split(' ')[0]}</button>`).join('');
+  el.querySelectorAll('.fpill').forEach(btn => btn.addEventListener('click',()=>{
+    el.querySelectorAll('.fpill').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    onChange(btn.dataset.pid);
+  }));
+}
+
+function rebuildPersonFilters() {
+  const strips = document.querySelectorAll('.global-person-filter');
+  strips.forEach(el => {
+    el.innerHTML = `<button class="fpill ${S.globalPid==='all'?'active':''}" data-pid="all">All</button>`
+      + S.people.map(p=>`<button class="fpill ${S.globalPid===p.id?'active':''}" data-pid="${p.id}">${p.name.split(' ')[0]}</button>`).join('');
+    el.querySelectorAll('.fpill').forEach(btn => btn.addEventListener('click', () => {
+      S.globalPid = btn.dataset.pid;
+      renderAll();
+    }));
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// PEOPLE RENDER
+// ════════════════════════════════════════════════════════
+function renderPeople() {
+  const tbody = $('people-tbody');
+  if(!tbody) return;
+  let list = [...S.people];
+  if(S.globalPid!=='all') list = list.filter(p=>p.id===S.globalPid);
+  if(!list.length) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--muted);font-size:0.82rem;">No people found</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(p => {
+    const meds = S.medicines.filter(m=>m.person_id===p.id && m.ongoing==='TRUE').map(m=>m.medicine_name);
+    const medDisplay = meds.length ? meds.join(', ') : null;
+    return `<tr>
+      <td>
+        <div class="person-name-cell">${p.name}</div>
+        <div class="person-rel">${[p.relation, p.blood_group].filter(Boolean).join(' · ')||''}</div>
+      </td>
+      <td class="${medDisplay?'meds-cell':'meds-cell none'}">${medDisplay||'—'}</td>
+      <td style="white-space:nowrap;text-align:right;">
+        <button class="btn-xs" style="margin-right:4px;" onclick="openPersonDetail('${p.id}')">View More</button>
+        <button class="btn-xs primary" onclick="openPersonModal('${p.id}')">Edit</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════
+// HOME — MEDICINES
+// ════════════════════════════════════════════════════════
+function renderHomeMeds() {
+  let meds = S.medicines.filter(m=>m.ongoing==='TRUE');
+  if(S.globalPid!=='all') meds=meds.filter(m=>m.person_id===S.globalPid);
+  meds = meds.slice(0,5);
+  const el = $('home-meds-list');
+  if(!el) return;
+  if(!meds.length){ el.innerHTML='<div class="empty-state"><i class="bi bi-capsule"></i><p>No ongoing medicines</p></div>'; return; }
+  el.innerHTML = `<div class="card-base" style="padding:10px 14px;">${meds.map(m=>`
+    <div class="med-row" onclick="openMedicineModal('${m.id}')">
+      <div class="med-dot"></div>
+      <div style="flex:1;">
+        <div class="med-name">${m.medicine_name} <span style="font-weight:400;color:var(--muted);font-size:0.75rem;">${m.dosage||''}</span></div>
+        <div class="med-meta">${getPerson(m.person_id).name||'—'} · ${m.when_to_take||''}</div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+// ════════════════════════════════════════════════════════
+// HOME — INSURANCE
+// ════════════════════════════════════════════════════════
+function renderHomeInsurance() {
+  const el = $('home-insurance-list');
+  if(!S.insurance.length){ el.innerHTML='<div class="empty-state"><i class="bi bi-shield"></i><p>No insurance policies added</p></div>'; return; }
+  el.innerHTML = [...S.insurance].sort((a,b)=>daysUntil(a.premium_due_date)-daysUntil(b.premium_due_date)).map(i=>insCardHtml(i)).join('');
+}
+
+function insCardHtml(ins) {
+  const days = daysUntil(ins.premium_due_date);
+  const cls  = days<=7?'danger':days<=30?'warn':'';
+  const dueLabel = ins.premium_due_date ? (days<0?'Overdue':days===0?'Due today':`Due in ${days}d`) : '—';
+  const persons  = (ins.persons_covered||'').split(',').map(id=>getPerson(id.trim()).name||id).filter(Boolean).join(', ');
+  return `<div class="ins-card ${cls}" onclick="openInsuranceDetail('${ins.id}')">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div class="ins-name">${ins.policy_name||ins.provider}</div>
+        <div class="ins-meta">${ins.provider} · ${ins.type} · ${persons}</div>
+        <div class="ins-meta">Sum insured: ${fmtMoney(ins.sum_insured)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:0.72rem;color:var(--muted);">Premium</div>
+        <div style="font-weight:600;font-size:0.88rem;">${fmtMoney(ins.premium_amount)}</div>
+      </div>
+    </div>
+    <div class="ins-due ${cls}"><i class="bi bi-calendar-event me-1"></i>${dueLabel} · ${fmtDate(ins.premium_due_date)}</div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════
+// HOME — VAULT
+// ════════════════════════════════════════════════════════
+function renderHomeVault() {
+  const el = $('home-vault-list');
+  if(!el) return;
+  let list = [...S.vault];
+  if(S.globalPid!=='all') list = list.filter(d=>d.person_id===S.globalPid);
+  const docs = list.slice(0,3);
+  if(!docs.length){ el.innerHTML='<div class="empty-state"><i class="bi bi-folder2"></i><p>No documents found</p></div>'; return; }
+  el.innerHTML = docs.map(d=>vaultCardHtml(d)).join('');
+}
+
+function vaultCardHtml(d) {
+  const icon = CAT_ICONS[d.category]||'bi-folder';
+  const person = d.person_id ? getPerson(d.person_id).name : 'Family';
+  return `<div class="vault-card" onclick="openVaultDetail('${d.id}')">
+    <div class="vault-icon"><i class="bi ${icon}"></i></div>
+    <div style="flex:1;min-width:0;">
+      <div class="vault-name">${d.name}</div>
+      <div class="vault-meta">${d.category} · ${person}${d.document_number?' · '+d.document_number:''}</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:var(--border);font-size:0.85rem;"></i>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════
+// INSURANCE PAGE
+// ════════════════════════════════════════════════════════
+function renderInsurancePage() {
+  let list = [...S.insurance];
+  if(S.globalPid!=='all') list=list.filter(i=>i.persons_covered&&i.persons_covered.includes(S.globalPid));
+  list.sort((a,b)=>daysUntil(a.premium_due_date)-daysUntil(b.premium_due_date));
+  const el = $('insurance-list');
+  if(!list.length){ el.innerHTML='<div class="empty-state"><i class="bi bi-shield"></i><p>No policies found</p></div>'; return; }
+
+  const rows = list.map(ins => {
+    const days = daysUntil(ins.premium_due_date);
+    const dueCls = days<=7?'renew-danger':days<=30?'renew-warn':'renew-ok';
+    const dueStr = !ins.premium_due_date ? '—'
+      : days<0 ? 'Overdue!'
+      : days===0 ? 'Today!'
+      : days<=7 ? `${days}d left`
+      : fmtDate(ins.premium_due_date);
+    const persons = (ins.persons_covered||'').split(',').map(id=>getPerson(id.trim()).name||id).filter(Boolean).join(', ');
+    return `<tr onclick="openInsuranceDetail('${ins.id}')">
+      <td><div style="font-weight:600;">${ins.provider}</div><div style="font-size:0.7rem;color:var(--muted);">${ins.policy_name||''}</div></td>
+      <td><span class="badge-cat">${ins.type}</span></td>
+      <td class="${dueCls}">${dueStr}</td>
+      <td class="ins-col-hide" style="font-size:0.78rem;color:var(--muted);">${ins.policy_number||'—'}</td>
+      <td class="ins-col-hide" style="font-size:0.78rem;">${persons}</td>
+      <td><button class="btn-xs" onclick="event.stopPropagation();openInsuranceDetail('${ins.id}')">View</button></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<div class="table-wrap">
+    <table class="ins-table">
+      <thead><tr>
+        <th>Provider</th>
+        <th>Type</th>
+        <th>Renew Date</th>
+        <th class="ins-col-hide">Policy No.</th>
+        <th class="ins-col-hide">Covered</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════
+// REPORTS PAGE
+// ════════════════════════════════════════════════════════
+function renderReportsPage() {
+  let list = [...S.entries];
+  if(S.globalPid!=='all') list=list.filter(e=>e.person_id===S.globalPid);
+  list.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const shown = list.slice(0,S.repLimit);
+  const el = $('reports-list');
+  if(!shown.length){ el.innerHTML='<div class="empty-state"><i class="bi bi-file-medical"></i><p>No reports found</p></div>'; return; }
+
+  el.innerHTML = `<div class="table-wrap"><table class="entry-table">
+    <thead><tr>
+      <th>Name</th><th>Person</th><th>Date</th><th>Doctor</th>
+    </tr></thead>
+    <tbody>${shown.map(e=>`<tr onclick="openEntryDetail('${e.id}')">
+      <td style="font-weight:600;">${e.name}</td>
+      <td>${getPerson(e.person_id).name||'—'}</td>
+      <td style="white-space:nowrap;">${fmtDate(e.date)}</td>
+      <td style="color:var(--muted);">${e.doctor||'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+
+  $('rep-viewall-btn').style.display = list.length>S.repLimit ? '' : 'none';
+}
+function loadMoreReports() { S.repLimit+=10; renderReportsPage(); }
+
+// ════════════════════════════════════════════════════════
+// MEDICINES PAGE
+// ════════════════════════════════════════════════════════
+function renderMedicinesPage() {
+  let list = [...S.medicines];
+  if(S.globalPid!=='all') list=list.filter(m=>m.person_id===S.globalPid);
+  list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const shown = list.slice(0,S.medLimit);
+  const el = $('medicines-list');
+  if(!shown.length){ el.innerHTML='<div class="empty-state"><i class="bi bi-capsule"></i><p>No medicines found</p></div>'; return; }
+
+  const rows = shown.map(m=>`
+    <tr onclick="openMedicineModal('${m.id}')">
+      <td>
+        <div style="font-weight:600;">${m.medicine_name}</div>
+        <div style="font-size:0.7rem;color:var(--muted);">${m.dosage||''}</div>
+      </td>
+      <td style="font-size:0.78rem;">${getPerson(m.person_id).name||'—'}</td>
+      <td style="font-size:0.75rem;color:var(--muted);">${m.when_to_take||'—'}</td>
+      <td style="font-size:0.75rem;color:var(--muted);">${fmtDate(m.from_date)}</td>
+      <td style="text-align:center;">
+        <input type="checkbox" ${m.ongoing==='TRUE'?'checked':''} disabled
+          style="width:16px;height:16px;accent-color:var(--brand);cursor:default;">
+      </td>
+    </tr>`).join('');
+
+  el.innerHTML = `<div class="table-wrap">
+    <table class="entry-table">
+      <thead><tr>
+        <th>Medicine</th><th>Person</th><th>When</th><th>From</th><th style="text-align:center;">Ongoing</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+  $('med-viewall-btn').style.display = list.length>S.medLimit ? '' : 'none';
+}
+function loadMoreMeds() { S.medLimit+=10; renderMedicinesPage(); }
+
+// ════════════════════════════════════════════════════════
+// VAULT PAGE
+// ════════════════════════════════════════════════════════
+function renderVaultPage() {
+  let list = [...S.vault];
+  if(S.globalPid!=='all') list=list.filter(d=>d.person_id===S.globalPid);
+  const el = $('vault-list');
+  if(!list.length){ el.innerHTML='<div class="empty-state"><i class="bi bi-folder2"></i><p>No documents found</p></div>'; return; }
+  el.innerHTML = list.map(d=>vaultCardHtml(d)).join('');
+}
+
+// ════════════════════════════════════════════════════════
+// SEARCH
+// ════════════════════════════════════════════════════════
+$('search-input').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  const el = $('search-results');
+  if(q.length<2){ el.innerHTML='<div class="empty-state"><i class="bi bi-search"></i><p>Type to search everything</p></div>'; return; }
+
+  const match = (obj, fields) => fields.some(f=>(obj[f]||'').toLowerCase().includes(q));
+
+  const people  = S.people.filter(p=>match(p,['name','relation','allergies','description']));
+  const entries = S.entries.filter(e => {
+    if (match(e, ['name', 'doctor', 'hospital', 'description'])) return true;
+    const atts = S.attachments.filter(a => a.entry_id === e.id);
+    return atts.some(a => match(a, ['name', 'description', 'value']));
+  });
+  const meds    = S.medicines.filter(m=>match(m,['medicine_name','purpose','notes']));
+  const ins     = S.insurance.filter(i=>match(i,['provider','policy_name','policy_number','notes']));
+  const vault   = S.vault.filter(d=>match(d,['name','document_number','description']));
+
+  let html='';
+  if(!people.length&&!entries.length&&!meds.length&&!ins.length&&!vault.length){
+    el.innerHTML=`<div class="empty-state"><i class="bi bi-search"></i><p>No results for "<strong>${q}</strong>"</p></div>`; return;
+  }
+  if(entries.length) html+=`<div class="detail-section-title" style="margin-bottom:8px;">Medical Reports (${entries.length})</div>`+entries.map(e=>`<div class="card-base card-tap" onclick="openEntryDetail('${e.id}')"><div style="font-weight:600;font-size:0.85rem;">${e.name}</div><div style="font-size:0.72rem;color:var(--muted);">${getPerson(e.person_id).name||'—'} · ${fmtDate(e.date)}</div></div>`).join('');
+  if(meds.length) html+=`<div class="detail-section-title" style="margin:12px 0 8px;">Medicines (${meds.length})</div>`+meds.map(m=>`<div class="card-base card-tap" onclick="openMedicineModal('${m.id}')"><div style="font-weight:600;font-size:0.85rem;">${m.medicine_name}</div><div style="font-size:0.72rem;color:var(--muted);">${getPerson(m.person_id).name||'—'} · ${m.dosage||''}</div></div>`).join('');
+  if(ins.length) html+=`<div class="detail-section-title" style="margin:12px 0 8px;">Insurance (${ins.length})</div>`+ins.map(i=>insCardHtml(i)).join('');
+  if(vault.length) html+=`<div class="detail-section-title" style="margin:12px 0 8px;">Documents (${vault.length})</div>`+vault.map(d=>vaultCardHtml(d)).join('');
+  if(people.length) html+=`<div class="detail-section-title" style="margin:12px 0 8px;">People (${people.length})</div>`+people.map(p=>`<div class="card-base card-tap" onclick="openPersonDetail('${p.id}')"><div style="font-weight:600;font-size:0.85rem;">${p.name}</div><div style="font-size:0.72rem;color:var(--muted);">${p.relation||'—'}</div></div>`).join('');
+  el.innerHTML = html;
+});
+
+// ════════════════════════════════════════════════════════
+// PERSON MODAL (add/edit)
+// ════════════════════════════════════════════════════════
+function openPersonModal(pid=null) {
+  S.editingPersonId = pid;
+  const p = pid ? S.people.find(x=>x.id===pid) : null;
+  $('person-modal-title').textContent = p ? 'Edit Person' : 'Add Person';
+  $('pm-id').value       = p?.id||'';
+  $('pm-name').value     = p?.name||'';
+  $('pm-dob').value      = p?.dob||'';
+  $('pm-relation').value = p?.relation||'';
+  $('pm-blood').value    = p?.blood_group||'';
+  $('pm-allergies').value= p?.allergies||'';
+  $('pm-desc').value     = p?.description||'';
+  $('pm-del-btn').style.display = p ? '' : 'none';
+  openModal('person-modal');
+}
+
+async function savePerson() {
+  const name = $('pm-name').value.trim();
+  if(!name){ toast('Name is required','warn'); return; }
+  const payload = {
+    name, dob:$('pm-dob').value, relation:$('pm-relation').value,
+    blood_group:$('pm-blood').value, allergies:$('pm-allergies').value,
+    description:$('pm-desc').value
+  };
+  overlay(true,'Saving person...',50);
+  try {
+    const pid = $('pm-id').value;
+    if(pid) await api('/api/people/'+pid,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    else await api('/api/people',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:genId(),...payload})});
+    await loadAll(); renderAll();
+    closeModal('person-modal'); overlay(false); toast(pid?'Person updated':'Person added');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+async function deletePerson() {
+  const pid = $('pm-id').value; if(!pid) return;
+  if(!confirm('Delete this person? Their records will remain.')) return;
+  overlay(true,'Deleting...',50);
+  try {
+    await api('/api/people/'+pid,{method:'DELETE'});
+    await loadAll(); renderAll();
+    closeModal('person-modal'); overlay(false); toast('Person deleted');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+// ════════════════════════════════════════════════════════
+// PERSON DETAIL
+// ════════════════════════════════════════════════════════
+function openPersonDetail(pid) {
+  const p = S.people.find(x=>x.id===pid); if(!p) return;
+  const meds    = S.medicines.filter(m=>m.person_id===pid&&m.ongoing==='TRUE');
+  const entries = S.entries.filter(e=>e.person_id===pid).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,3);
+  const age     = p.dob ? Math.floor((Date.now()-new Date(p.dob))/(365.25*24*3600*1000)) : null;
+
+  $('person-detail-content').innerHTML=`
+    <div style="margin-bottom:18px;">
+      <div style="font-family:'Lora',serif;font-size:1.2rem;font-weight:600;">${p.name}</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">${[p.relation,age?age+' yrs':null,p.blood_group].filter(Boolean).join(' · ')}</div>
+      ${p.allergies?`<div style="font-size:0.75rem;color:var(--danger);margin-top:4px;"><i class="bi bi-exclamation-triangle me-1"></i>Allergies: ${p.allergies}</div>`:''}
+    </div>
+
+    ${p.description?`<div class="detail-section">
+      <div class="detail-section-title">Medical History</div>
+      <div class="card-base" style="white-space:pre-wrap;font-size:0.82rem;line-height:1.6;">${p.description}</div>
+      <button class="btn-xs" style="margin-top:8px;width:auto;padding:6px 14px;" onclick="closeModal('person-detail-modal');openPersonModal('${p.id}')">Edit History</button>
+    </div>`:'<div class="detail-section"><div class="detail-section-title">Medical History</div><p style="font-size:0.8rem;color:var(--muted);">No history added. <button class="btn-xs" onclick="closeModal(\'person-detail-modal\');openPersonModal(\'${p.id}\')" style="width:auto;padding:4px 10px;">Add</button></p></div>'}
+
+    <div class="detail-section">
+      <div class="detail-section-title">Current Medicines</div>
+      ${meds.length ? `<div class="card-base" style="padding:10px 14px;">${meds.map(m=>`<div class="med-row"><div class="med-dot"></div><div><div class="med-name">${m.medicine_name} <span style="font-weight:400;color:var(--muted);font-size:0.75rem;">${m.dosage||''}</span></div><div class="med-meta">${m.when_to_take||''} · Since ${fmtDate(m.from_date)}</div></div></div>`).join('')}</div>` : '<p style="font-size:0.8rem;color:var(--muted);">No ongoing medicines</p>'}
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Recent Medical Reports</div>
+      ${entries.length ? entries.map(e=>`<div class="card-base card-tap" onclick="closeModal('person-detail-modal');openEntryDetail('${e.id}')"><div style="font-weight:600;font-size:0.85rem;">${e.name}</div><div style="font-size:0.72rem;color:var(--muted);">${fmtDate(e.date)} · ${e.doctor||'No doctor'}</div></div>`).join('') : '<p style="font-size:0.8rem;color:var(--muted);">No reports</p>'}
+    </div>`;
+  openModal('person-detail-modal');
+}
+
+// ════════════════════════════════════════════════════════
+// ENTRY MODAL (add/edit medical report)
+// ════════════════════════════════════════════════════════
+function openEntryModal(eid=null) {
+  S.editingEntryId = eid;
+  const e = eid ? S.entries.find(x=>x.id===eid) : null;
+  $('entry-modal-title').textContent = e ? 'Edit Medical Report' : 'Add Medical Report';
+  $('em-id').value       = e?.id||'';
+  $('em-date').value     = e?.date || new Date().toISOString().split('T')[0];
+  $('em-name').value     = e?.name||'';
+  $('em-doctor').value   = e?.doctor||'';
+  $('em-hospital').value = e?.hospital||'';
+  $('em-next').value     = e?.next_visit_date||'';
+  $('em-desc').value     = e?.description||'';
+  $('em-del-btn').style.display = e ? '' : 'none';
+
+  // Person dropdown
+  $('em-person').innerHTML = S.people.map(p=>`<option value="${p.id}"${e?.person_id===p.id?' selected':''}>${p.name}</option>`).join('');
+
+  // Attachments — start with one empty row
+  $('em-attachments').innerHTML='';
+  addAttachmentRow();
+
+  openModal('entry-modal');
+}
+
+function addAttachmentRow() {
+  const id = 'att_'+genId().slice(0,8);
+  const div = document.createElement('div');
+  div.className='repeat-row'; div.id=id;
+  div.innerHTML=`
+    <button class="remove-row-btn" onclick="this.closest('.repeat-row').remove()"><i class="bi bi-x-lg"></i></button>
+    <div class="form-group">
+      <label class="form-label">Name *</label>
+      <input type="text" class="form-control att-name" placeholder="Blood Report, BP Reading, Prescription...">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="form-group">
+        <label class="form-label">Value (optional)</label>
+        <input type="text" class="form-control att-value" placeholder="120/80 mmHg">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date & Time</label>
+        <input type="datetime-local" class="form-control att-datetime">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">File (optional)</label>
+      <div class="upload-zone att-zone" style="padding:14px;">
+        <i class="bi bi-cloud-upload" style="font-size:1.3rem;"></i>
+        <p>Tap to upload</p>
+        <input type="file" class="att-file" accept="image/*,application/pdf" style="display:none;">
+      </div>
+      <div class="att-file-list"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label">Description</label>
+      <input type="text" class="form-control att-desc" placeholder="Optional notes">
+    </div>`;
+  const zone = div.querySelector('.att-zone');
+  const finput = div.querySelector('.att-file');
+  const flist  = div.querySelector('.att-file-list');
+  zone.addEventListener('click',()=>finput.click());
+  finput.addEventListener('change',()=>renderFileList(finput.files, flist));
+  $('em-attachments').appendChild(div);
+}
+
+function addMedicineRow(containerId) {
+  const div = document.createElement('div');
+  div.className='repeat-row';
+  div.innerHTML=`
+    <button class="remove-row-btn" onclick="this.closest('.repeat-row').remove()"><i class="bi bi-x-lg"></i></button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="form-group">
+        <label class="form-label">Medicine Name *</label>
+        <input type="text" class="form-control med-name" placeholder="Metformin">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dosage</label>
+        <input type="text" class="form-control med-dosage" placeholder="500mg">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Purpose</label>
+      <input type="text" class="form-control med-purpose" placeholder="For blood sugar control">
+    </div>
+    <div class="form-group">
+      <label class="form-label">When to Take</label>
+      <div class="chip-group med-when">
+        ${WHEN_OPTIONS.map(w=>`<div class="chip" data-val="${w}">${w}</div>`).join('')}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="form-group">
+        <label class="form-label">From Date</label>
+        <input type="date" class="form-control med-from">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Until Date</label>
+        <input type="date" class="form-control med-until">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;font-weight:600;color:var(--brand);">
+        <input type="checkbox" class="med-ongoing" style="width:15px;height:15px;accent-color:var(--brand);"> Ongoing
+      </label>
+    </div>`;
+  div.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>c.classList.toggle('selected')));
+  $(containerId).appendChild(div);
+}
+
+function renderFileList(files, container) {
+  container.innerHTML='';
+  Array.from(files).forEach(f=>{
+    const d = document.createElement('div'); d.className='file-item';
+    d.innerHTML=`<i class="bi bi-file-earmark"></i><span class="file-item-name">${f.name}</span><span style="font-size:0.7rem;color:var(--muted);">${(f.size/1024).toFixed(0)}KB</span>`;
+    container.appendChild(d);
+  });
+}
+
+async function saveEntry() {
+  const name = $('em-name').value.trim();
+  const pid  = $('em-person').value;
+  const date = $('em-date').value;
+  if(!name||!pid||!date){ toast('Name, person and date are required','warn'); return; }
+
+  const fd = new FormData();
+  fd.append('id', $('em-id').value || genId());
+  fd.append('person_id', pid);
+  fd.append('name', name);
+  fd.append('doctor', $('em-doctor').value);
+  fd.append('hospital', $('em-hospital').value);
+  fd.append('date', date);
+  fd.append('next_visit_date', $('em-next').value);
+  fd.append('description', $('em-desc').value);
+  // Collect attachment rows
+  const attRows = $('em-attachments').querySelectorAll('.repeat-row');
+  const atts = [];
+  attRows.forEach((row,i)=>{
+    const n = row.querySelector('.att-name')?.value?.trim();
+    if(!n) return;
+    atts.push({ name:n, value:row.querySelector('.att-value')?.value||'', datetime:row.querySelector('.att-datetime')?.value||'', description:row.querySelector('.att-desc')?.value||'' });
+    const f = row.querySelector('.att-file')?.files?.[0];
+    if(f) fd.append('att_file_'+i, f);
+    atts[atts.length-1].file_index = f ? i : -1;
+  });
+  fd.append('attachments', JSON.stringify(atts));
+
+
+  overlay(true,'Saving report...',30);
+  try {
+    const eid = $('em-id').value;
+    if(eid) await api('/api/entries/'+eid,{method:'PUT',body:fd});
+    else await api('/api/entries',{method:'POST',body:fd});
+    await loadAll(); renderAll();
+    closeModal('entry-modal'); overlay(false); toast('Report saved!');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+async function deleteEntry() {
+  const eid = $('em-id').value; if(!eid) return;
+  if(!confirm('Delete this report and all its attachments?')) return;
+  overlay(true,'Deleting...',50);
+  try {
+    await api('/api/entries/'+eid,{method:'DELETE'});
+    await loadAll(); renderAll();
+    closeModal('entry-modal'); overlay(false); toast('Report deleted');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+// ════════════════════════════════════════════════════════
+// ENTRY DETAIL
+// ════════════════════════════════════════════════════════
+async function openEntryDetail(eid) {
+  overlay(true,'Loading...',50);
+  try {
+    const data = await api('/api/entries/'+eid+'/full');
+    overlay(false);
+    const e    = data.entry;
+    const atts = data.attachments||[];
+    const meds = data.medicines||[];
+    const linked = e.linked_entry_id ? S.entries.find(x=>x.id===e.linked_entry_id) : null;
+
+    $('detail-modal-content').innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+        <div>
+          <div style="font-family:'Lora',serif;font-size:1.1rem;font-weight:600;">${e.name}</div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">${getPerson(e.person_id).name||'—'} · ${fmtDate(e.date)}</div>
+        </div>
+        <button class="btn-xs primary" onclick="closeModal('detail-modal');openEntryModal('${e.id}')">Edit</button>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Details</div>
+        ${[['Doctor',e.doctor],['Hospital',e.hospital],['Next Visit',fmtDate(e.next_visit_date)],['Linked Entry',linked?.name]].filter(([,v])=>v).map(([l,v])=>`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-val">${v}</span></div>`).join('')}
+        ${e.description?`<div style="margin-top:10px;font-size:0.82rem;line-height:1.6;white-space:pre-wrap;">${e.description}</div>`:''}
+      </div>
+
+      ${atts.length?`<div class="detail-section">
+        <div class="detail-section-title">Attachments (${atts.length})</div>
+        ${atts.map(a=>`<div class="card-base" style="margin-bottom:8px;">
+          <div style="font-weight:600;font-size:0.85rem;">${a.name}</div>
+          ${a.value?`<div style="font-size:0.9rem;font-weight:600;color:var(--brand);margin-top:2px;">${a.value}</div>`:''}
+          ${a.datetime?`<div style="font-size:0.72rem;color:var(--muted);">${new Date(a.datetime).toLocaleString('en-IN')}</div>`:''}
+          ${a.description?`<div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">${a.description}</div>`:''}
+          ${a.file_drive_link?`<a href="${getProxyUrl(a.file_drive_link)}" target="_blank" style="font-size:0.75rem;color:var(--accent);margin-top:6px;display:inline-block;"><i class="bi bi-cloud me-1"></i>View file in Drive</a>`:''}
+        </div>`).join('')}
+      </div>`:''}
+
+      ${meds.length?`<div class="detail-section">
+        <div class="detail-section-title">Medicines (${meds.length})</div>
+        ${meds.map(m=>`<div class="card-base" style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;">
+            <div style="font-weight:600;font-size:0.85rem;">${m.medicine_name} <span style="font-weight:400;color:var(--muted);">${m.dosage||''}</span></div>
+            <span class="badge-cat ${m.ongoing==='TRUE'?'badge-ongoing':'badge-stopped'}">${m.ongoing==='TRUE'?'Ongoing':'Stopped'}</span>
+          </div>
+          ${m.purpose?`<div style="font-size:0.75rem;color:var(--brand-mid);margin-top:2px;">${m.purpose}</div>`:''}
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">${m.when_to_take||''} · From ${fmtDate(m.from_date)}</div>
+        </div>`).join('')}
+      </div>`:''}`;
+
+    $('detail-modal-footer').innerHTML=`<button class="btn-secondary-brand" onclick="closeModal('detail-modal')">Close</button>`;
+    openModal('detail-modal');
+  } catch(e){ overlay(false); toast('Error: '+e.message,'err'); }
+}
+
+// ════════════════════════════════════════════════════════
+// MEDICINE MODAL (standalone)
+// ════════════════════════════════════════════════════════
+function openMedicineModal(mid=null) {
+  S.editingMedId = mid;
+  const m = mid ? S.medicines.find(x=>x.id===mid) : null;
+  $('med-modal-title').textContent = m ? 'Edit Medicine' : 'Add Medicine';
+  $('mm-id').value      = m?.id||'';
+  $('mm-name').value    = m?.medicine_name||'';
+  $('mm-purpose').value = m?.purpose||'';
+  $('mm-dosage').value  = m?.dosage||'';
+  $('mm-from').value    = m?.from_date||'';
+  $('mm-until').value   = m?.until_date||'';
+  $('mm-notes').value   = m?.notes||'';
+  $('mm-ongoing').checked = m?.ongoing==='TRUE';
+
+  $('mm-person').innerHTML = S.people.map(p=>`<option value="${p.id}"${m?.person_id===p.id?' selected':''}>${p.name}</option>`).join('');
+  $('mm-entry').innerHTML  = '<option value="">None</option>'+S.entries.map(e=>`<option value="${e.id}"${m?.entry_id===e.id?' selected':''}>${e.name} (${fmtDate(e.date)})</option>`).join('');
+
+  // When chips
+  const selected = (m?.when_to_take||'').split(',').map(x=>x.trim());
+  $('mm-when').querySelectorAll('.chip').forEach(c=>{
+    c.classList.toggle('selected', selected.includes(c.dataset.val));
+    c.onclick = ()=>c.classList.toggle('selected');
+  });
+
+  $('mm-del-btn').style.display = m ? '' : 'none';
+  openModal('medicine-modal');
+}
+
+async function saveMedicine() {
+  const name = $('mm-name').value.trim();
+  const pid  = $('mm-person').value;
+  if(!name||!pid){ toast('Name and person required','warn'); return; }
+  const when = Array.from($('mm-when').querySelectorAll('.chip.selected')).map(c=>c.dataset.val).join(',');
+  const payload = {
+    person_id:pid, medicine_name:name, purpose:$('mm-purpose').value,
+    dosage:$('mm-dosage').value, when_to_take:when,
+    from_date:$('mm-from').value, until_date:$('mm-until').value,
+    ongoing:$('mm-ongoing').checked?'TRUE':'FALSE',
+    entry_id:$('mm-entry').value, notes:$('mm-notes').value
+  };
+  overlay(true,'Saving medicine...',50);
+  try {
+    const mid = $('mm-id').value;
+    if(mid) await api('/api/medicines/'+mid,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    else await api('/api/medicines',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:genId(),...payload})});
+    await loadAll(); renderAll();
+    closeModal('medicine-modal'); overlay(false); toast(mid?'Medicine updated':'Medicine added');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+async function deleteMedicine() {
+  const mid = $('mm-id').value; if(!mid) return;
+  if(!confirm('Delete this medicine record?')) return;
+  overlay(true,'Deleting...',50);
+  try {
+    await api('/api/medicines/'+mid,{method:'DELETE'});
+    await loadAll(); renderAll();
+    closeModal('medicine-modal'); overlay(false); toast('Deleted');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+// ════════════════════════════════════════════════════════
+// INSURANCE MODAL
+// ════════════════════════════════════════════════════════
+function openInsuranceModal(iid=null) {
+  S.editingInsId = iid;
+  const ins = iid ? S.insurance.find(x=>x.id===iid) : null;
+  $('ins-modal-title').textContent = ins ? 'Edit Insurance' : 'Add Insurance Policy';
+  $('im-id').value       = ins?.id||'';
+  $('im-provider').value = ins?.provider||'';
+  $('im-type').value     = ins?.type||'Health';
+  $('im-pname').value    = ins?.policy_name||'';
+  $('im-pnum').value     = ins?.policy_number||'';
+  $('im-sum').value      = ins?.sum_insured||'';
+  $('im-premium').value  = ins?.premium_amount||'';
+  $('im-freq').value     = ins?.premium_frequency||'Annual';
+  $('im-due').value      = ins?.premium_due_date||'';
+  $('im-renewal').value  = ins?.renewal_date||'';
+  $('im-notes').value    = ins?.notes||'';
+  $('im-del-btn').style.display = ins ? '' : 'none';
+  S.insFiles = [];
+  $('im-file-list').innerHTML='';
+
+  // People multi-select
+  const covered = (ins?.persons_covered||'').split(',').map(x=>x.trim());
+  $('im-persons').innerHTML = S.people.map(p=>`<div class="people-chip ${covered.includes(p.id)?'selected':''}" data-pid="${p.id}">${p.name.split(' ')[0]}</div>`).join('');
+  $('im-persons').querySelectorAll('.people-chip').forEach(c=>c.addEventListener('click',()=>c.classList.toggle('selected')));
+
+  openModal('insurance-modal');
+}
+
+$('im-upload-zone').addEventListener('click',()=>$('im-files').click());
+$('im-files').addEventListener('change',e=>{
+  S.insFiles = Array.from(e.target.files);
+  $('im-file-list').innerHTML = S.insFiles.map(f=>`<div class="file-item"><i class="bi bi-file-earmark"></i><span class="file-item-name">${f.name}</span></div>`).join('');
+});
+
+async function saveInsurance() {
+  const provider = $('im-provider').value.trim();
+  const persons  = Array.from($('im-persons').querySelectorAll('.people-chip.selected')).map(c=>c.dataset.pid).join(',');
+  if(!provider||!persons){ toast('Provider and persons covered required','warn'); return; }
+
+  const fd = new FormData();
+  fd.append('id', $('im-id').value||genId());
+  fd.append('persons_covered', persons);
+  fd.append('provider', provider);
+  fd.append('type', $('im-type').value);
+  fd.append('policy_name', $('im-pname').value);
+  fd.append('policy_number', $('im-pnum').value);
+  fd.append('sum_insured', $('im-sum').value);
+  fd.append('premium_amount', $('im-premium').value);
+  fd.append('premium_frequency', $('im-freq').value);
+  fd.append('premium_due_date', $('im-due').value);
+  fd.append('renewal_date', $('im-renewal').value);
+  fd.append('notes', $('im-notes').value);
+  S.insFiles.forEach(f=>fd.append('files',f));
+
+  overlay(true,'Saving insurance...',30);
+  try {
+    const iid = $('im-id').value;
+    if(iid) await api('/api/insurance/'+iid,{method:'PUT',body:fd});
+    else await api('/api/insurance',{method:'POST',body:fd});
+    await loadAll(); renderAll();
+    closeModal('insurance-modal'); overlay(false); toast('Insurance saved!');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+function openInsuranceDetail(iid) {
+  const ins = S.insurance.find(x=>x.id===iid); if(!ins) return;
+  const persons = (ins.persons_covered||'').split(',').map(id=>getPerson(id.trim()).name||id).filter(Boolean).join(', ');
+  const days = daysUntil(ins.premium_due_date);
+  const dueLabel = ins.premium_due_date ? (days<0?'Overdue!':days===0?'Due today!':days<=7?`Due in ${days} days`:fmtDate(ins.premium_due_date)) : '—';
+
+  $('detail-modal-content').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+      <div>
+        <div style="font-family:'Lora',serif;font-size:1.1rem;font-weight:600;">${ins.policy_name||ins.provider}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">${ins.provider} · ${ins.type}</div>
+      </div>
+      <button class="btn-xs primary" onclick="closeModal('detail-modal');openInsuranceModal('${ins.id}')">Edit</button>
+    </div>
+    <div class="detail-section">
+      ${[['Persons Covered',persons],['Policy No.',ins.policy_number],['Sum Insured',fmtMoney(ins.sum_insured)],['Premium',fmtMoney(ins.premium_amount)+' / '+ins.premium_frequency],['Next Due',dueLabel],['Renewal',fmtDate(ins.renewal_date)]].filter(([,v])=>v).map(([l,v])=>`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-val">${v}</span></div>`).join('')}
+    </div>
+    ${ins.notes?`<div class="detail-section"><div class="detail-section-title">Notes</div><div style="font-size:0.82rem;">${ins.notes}</div></div>`:''}
+    ${ins.file_drive_links?(ins.file_drive_links.split(',').filter(Boolean).map((l,i)=>`<a href="${getProxyUrl(l)}" target="_blank" style="display:inline-block;margin-right:8px;font-size:0.78rem;color:var(--accent);"><i class="bi bi-cloud me-1"></i>Document ${i+1}</a>`).join('')):''}`;
+  $('detail-modal-footer').innerHTML=`<button class="btn-secondary-brand" onclick="closeModal('detail-modal')">Close</button>`;
+  openModal('detail-modal');
+}
+
+async function deleteInsurance() {
+  const iid = $('im-id').value; if(!iid) return;
+  if(!confirm('Delete this policy?')) return;
+  overlay(true,'Deleting...',50);
+  try {
+    await api('/api/insurance/'+iid,{method:'DELETE'});
+    await loadAll(); renderAll();
+    closeModal('insurance-modal'); overlay(false); toast('Deleted');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+// ════════════════════════════════════════════════════════
+// VAULT MODAL
+// ════════════════════════════════════════════════════════
+function openVaultModal(vid=null) {
+  S.editingVaultId = vid;
+  const d = vid ? S.vault.find(x=>x.id===vid) : null;
+  $('vault-modal-title').textContent = d ? 'Edit Document' : 'Add Document';
+  $('vm-id').value     = d?.id||'';
+  
+  const predefined = ['Aadhar card','PAN card','Driving licence','Election Voter ID card','Passport','Photo','Signature','Senior Card'];
+  if (d && d.name && !predefined.includes(d.name)) {
+    $('vm-type').value = 'Other';
+    $('vm-name-custom').value = d.name;
+    $('vm-name-custom').style.display = 'block';
+  } else {
+    $('vm-type').value = d?.name || 'Aadhar card';
+    $('vm-name-custom').value = '';
+    $('vm-name-custom').style.display = 'none';
+  }
+  
+  $('vm-num').value    = d?.document_number||'';
+  $('vm-issue').value  = d?.issue_date||'';
+  $('vm-expiry').value = d?.expiry_date||'';
+  $('vm-desc').value   = d?.description||'';
+  $('vm-del-btn').style.display = d ? '' : 'none';
+  S.vaultFiles=[];
+  $('vm-file-list').innerHTML='';
+
+  $('vm-person').innerHTML = '<option value="">Family / All</option>'+S.people.map(p=>`<option value="${p.id}"${d?.person_id===p.id?' selected':''}>${p.name}</option>`).join('');
+  openModal('vault-modal');
+}
+
+$('vm-upload-zone').addEventListener('click',()=>$('vm-files').click());
+$('vm-files').addEventListener('change',e=>{
+  S.vaultFiles=Array.from(e.target.files);
+  $('vm-file-list').innerHTML=S.vaultFiles.map(f=>`<div class="file-item"><i class="bi bi-file-earmark"></i><span class="file-item-name">${f.name}</span></div>`).join('');
+});
+$('vm-type').addEventListener('change', e => {
+  $('vm-name-custom').style.display = e.target.value === 'Other' ? 'block' : 'none';
+});
+
+async function saveVaultDoc() {
+  let name = $('vm-type').value === 'Other' ? $('vm-name-custom').value.trim() : $('vm-type').value;
+  if(!name){ toast('Document name required','warn'); return; }
+  const fd = new FormData();
+  fd.append('id', $('vm-id').value||genId());
+  fd.append('category', 'Personal');
+  fd.append('person_id', $('vm-person').value);
+  fd.append('name', name);
+  fd.append('document_number', $('vm-num').value);
+  fd.append('issued_by', '');
+  fd.append('issue_date', $('vm-issue').value);
+  fd.append('expiry_date', $('vm-expiry').value);
+  fd.append('description', $('vm-desc').value);
+  S.vaultFiles.forEach(f=>fd.append('files',f));
+
+  overlay(true,'Saving document...',30);
+  try {
+    const vid = $('vm-id').value;
+    if(vid) await api('/api/vault/'+vid,{method:'PUT',body:fd});
+    else await api('/api/vault',{method:'POST',body:fd});
+    await loadAll(); renderAll();
+    closeModal('vault-modal'); overlay(false); toast('Document saved!');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+function openVaultDetail(vid) {
+  const d = S.vault.find(x=>x.id===vid); if(!d) return;
+  const person = d.person_id ? getPerson(d.person_id).name : 'Family';
+  $('detail-modal-content').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+      <div>
+        <div style="font-family:'Lora',serif;font-size:1.1rem;font-weight:600;">${d.name}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Personal · ${person}</div>
+      </div>
+      <button class="btn-xs primary" onclick="closeModal('detail-modal');openVaultModal('${d.id}')">Edit</button>
+    </div>
+    <div class="detail-section">
+      ${[['Doc Number',d.document_number],['Issue Date',fmtDate(d.issue_date)],['Expiry Date',fmtDate(d.expiry_date)]].filter(([,v])=>v).map(([l,v])=>`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-val">${v}</span></div>`).join('')}
+    </div>
+    ${d.description?`<div class="detail-section"><div class="detail-section-title">Notes</div><div style="font-size:0.82rem;">${d.description}</div></div>`:''}
+    ${d.file_drive_links?(d.file_drive_links.split(',').filter(Boolean).map((l,i)=>`<a href="${getProxyUrl(l)}" target="_blank" style="display:inline-block;margin-right:8px;margin-bottom:4px;font-size:0.78rem;color:var(--accent);"><i class="bi bi-cloud me-1"></i>File ${i+1}</a>`).join('')):''}`;
+  $('detail-modal-footer').innerHTML=`<button class="btn-secondary-brand" onclick="closeModal('detail-modal')">Close</button>`;
+  openModal('detail-modal');
+}
+
+async function deleteVaultDoc() {
+  const vid = $('vm-id').value; if(!vid) return;
+  if(!confirm('Delete this document?')) return;
+  overlay(true,'Deleting...',50);
+  try {
+    await api('/api/vault/'+vid,{method:'DELETE'});
+    await loadAll(); renderAll();
+    closeModal('vault-modal'); overlay(false); toast('Deleted');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+
+document.addEventListener('DOMContentLoaded', checkAuth);
+</script>
 </body>
 </html>
