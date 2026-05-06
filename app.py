@@ -316,5 +316,42 @@ def modify_vault_doc(vault_id):
         data_service.delete_record('Vault_Documents', vault_id)
         return jsonify({'success': True})
 
+# ---------------------------------------------------------
+# API ROUTES: WARRANTY CARDS
+# ---------------------------------------------------------
+
+@app.route('/api/warranty', methods=['GET'])
+@login_required
+def get_warranty():
+    return jsonify(data_service.get_records('Warranty_Cards'))
+
+@app.route('/api/warranty', methods=['POST'])
+@login_required
+def create_warranty():
+    data = request.get_json(silent=True) or request.form.to_dict()
+    existing = data.pop('existing_file_links', '')
+    paths = data_service.handle_files(request.files, 'files')
+    all_paths = [p for p in existing.split(',') if p] + paths
+    data['file_paths'] = ",".join(all_paths)
+    data['file_drive_links'] = ",".join(all_paths)
+    data_service.create_record('Warranty_Cards', data)
+    return jsonify({'success': True, 'id': data.get('id')})
+
+@app.route('/api/warranty/<warranty_id>', methods=['PUT', 'DELETE'])
+@login_required
+def modify_warranty(warranty_id):
+    if request.method == 'PUT':
+        data = request.get_json(silent=True) or request.form.to_dict()
+        existing = data.pop('existing_file_links', '')
+        paths = data_service.handle_files(request.files, 'files')
+        all_paths = [p for p in existing.split(',') if p] + paths
+        data['file_paths'] = ",".join(all_paths)
+        data['file_drive_links'] = ",".join(all_paths)
+        data_service.update_record('Warranty_Cards', warranty_id, data)
+        return jsonify({'success': True})
+    elif request.method == 'DELETE':
+        data_service.delete_record('Warranty_Cards', warranty_id)
+        return jsonify({'success': True})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)

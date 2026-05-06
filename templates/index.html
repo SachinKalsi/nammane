@@ -676,6 +676,19 @@ textarea.form-control { resize: vertical; min-height: 80px; }
     </div>
   </div>
 
+  <!-- ── PAGE: WARRANTY ────────────────────────────────── -->
+  <div class="page" id="page-warranty">
+    <div class="page-subhd">
+      <h2>Warranty Cards</h2>
+      <button class="btn-secondary-brand" onclick="openWarrantyModal()">
+        <i class="bi bi-plus-lg me-1"></i>Add
+      </button>
+    </div>
+    <div id="warranty-list">
+      <div class="empty-state"><i class="bi bi-shield-check"></i><p>No warranty cards yet</p></div>
+    </div>
+  </div>
+
   <!-- ── PAGE: SEARCH ──────────────────────────────────── -->
   <div class="page" id="page-search">
     <div class="page-subhd"><h2>Search</h2></div>
@@ -703,7 +716,10 @@ textarea.form-control { resize: vertical; min-height: 80px; }
       <i class="bi bi-capsule-pill"></i>Medicines
     </button>
     <button class="nav-btn" id="nav-vault" onclick="showPage('page-vault')">
-      <i class="bi bi-folder-fill"></i>Docs
+      <i class="bi bi-folder2"></i><span>Personal Docs</span>
+    </button>
+    <button class="nav-btn" id="nav-warranty" onclick="showPage('page-warranty')">
+      <i class="bi bi-shield-check"></i><span>Warranty Cards</span>
     </button>
   </nav>
 
@@ -1029,6 +1045,51 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   </div>
 </div>
 
+<!-- WARRANTY MODAL -->
+<div class="modal-overlay" id="warranty-modal">
+  <div class="modal-sheet">
+    <input type="hidden" id="wm-id">
+    <div style="font-weight:700;font-size:1.15rem;margin-bottom:12px;color:var(--brand);">Warranty Details</div>
+    
+    <div class="form-group">
+      <label class="form-label">Product Name *</label>
+      <input type="text" class="form-control" id="wm-product" placeholder="e.g. Samsung Refrigerator">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Purchase Date</label>
+        <input type="date" class="form-control" id="wm-purchase-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Warranty Till</label>
+        <input type="date" class="form-control" id="wm-warranty-till">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Upload Invoice/Receipt</label>
+      <div class="upload-zone" id="wm-upload-zone">
+        <i class="bi bi-cloud-upload"></i>
+        <p>Tap to upload PDF or image</p>
+        <input type="file" id="wm-files" multiple accept="image/*,application/pdf" style="display:none;">
+      </div>
+      <div class="file-list" id="wm-file-list"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-control" id="wm-notes" rows="2"></textarea>
+    </div>
+
+    <div class="modal-footer-btns">
+      <button class="btn-danger" id="wm-del-btn" style="display:none;" onclick="deleteWarranty()">Delete</button>
+      <button class="btn-secondary-brand" onclick="closeModal('warranty-modal')">Cancel</button>
+      <button class="btn-primary-brand" onclick="saveWarranty()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- Detail View Modal (generic) -->
 <div class="modal-overlay" id="detail-modal">
   <div class="modal-sheet">
@@ -1054,6 +1115,7 @@ let S = {
   medicines: [],
   insurance: [],
   vault:     [],
+  warranty:  [],
   attachments: [],
   // filter states
   globalPid:     'all',
@@ -1065,9 +1127,11 @@ let S = {
   editingMedId:      null,
   editingInsId:      null,
   editingVaultId:    null,
+  editingWarrantyId: null,
   // temp files
   insFiles:  [],
   vaultFiles:[],
+  warrantyFiles:[],
 };
 
 // ════════════════════════════════════════════════════════
@@ -1199,12 +1263,12 @@ async function api(path, opts={}) {
 
 async function loadAll() {
   try {
-    const [people,entries,medicines,insurance,vault,attachments] = await Promise.all([
+    const [people,entries,medicines,insurance,vault,attachments,warranty] = await Promise.all([
       api('/api/people'), api('/api/entries'), api('/api/medicines'),
-      api('/api/insurance'), api('/api/vault'), api('/api/attachments')
+      api('/api/insurance'), api('/api/vault'), api('/api/attachments'), api('/api/warranty')
     ]);
     S.people=people; S.entries=entries; S.medicines=medicines;
-    S.insurance=insurance; S.vault=vault; S.attachments=attachments||[];
+    S.insurance=insurance; S.vault=vault; S.attachments=attachments||[]; S.warranty=warranty||[];
   } catch(e) { toast('Error loading data: '+e.message,'err'); }
 }
 
@@ -1214,6 +1278,7 @@ function renderAll() {
   renderReportsPage();
   renderMedicinesPage();
   renderVaultPage();
+  renderWarrantyPage();
   renderHomeMeds();
   renderHomeVault();
   rebuildPersonFilters();
@@ -1226,7 +1291,7 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   $(id).classList.add('active');
-  const map = {'page-home':'nav-home','page-insurance':'nav-insurance','page-reports':'nav-reports','page-medicines':'nav-medicines','page-vault':'nav-vault'};
+  const map = {'page-home':'nav-home','page-insurance':'nav-insurance','page-reports':'nav-reports','page-medicines':'nav-medicines','page-vault':'nav-vault','page-warranty':'nav-warranty'};
   if(map[id]) $(map[id]).classList.add('active');
 }
 
@@ -2080,6 +2145,102 @@ async function deleteVaultDoc() {
   } catch(e){ overlay(false); toast(e.message,'err'); }
 }
 
+
+// ════════════════════════════════════════════════════════
+// WARRANTY CARDS
+// ════════════════════════════════════════════════════════
+function renderWarrantyPage() {
+  const el = $('warranty-list');
+  if(!el) return;
+  let list = [...S.warranty];
+  
+  if(!list.length){ el.innerHTML='<div class="empty-state"><i class="bi bi-shield-check"></i><p>No warranty cards yet</p></div>'; return; }
+  
+  el.innerHTML = list.map(d=>`
+    <div class="card-base doc-card" onclick="openWarrantyDetail('${d.id}')">
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:0.95rem;">${d.product}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">
+          Purchased: ${fmtDate(d.purchase_date)} &nbsp;•&nbsp; Warranty Till: ${fmtDate(d.warranty_till)}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+$('wm-upload-zone').addEventListener('click',()=>$('wm-files').click());
+$('wm-files').addEventListener('change',e=>{
+  S.warrantyFiles=Array.from(e.target.files);
+  $('wm-file-list').innerHTML=S.warrantyFiles.map(f=>`<div class="file-item"><i class="bi bi-file-earmark"></i><span class="file-item-name">${f.name}</span></div>`).join('');
+});
+
+function openWarrantyModal(wid=null) {
+  S.editingWarrantyId = wid;
+  const d = wid ? S.warranty.find(x=>x.id===wid) : null;
+  $('wm-id').value = d?.id||'';
+  $('wm-product').value = d?.product||'';
+  $('wm-purchase-date').value = d?.purchase_date||'';
+  $('wm-warranty-till').value = d?.warranty_till||'';
+  $('wm-notes').value = d?.notes||'';
+  $('wm-del-btn').style.display = d ? '' : 'none';
+  S.warrantyFiles=[];
+  $('wm-file-list').innerHTML='';
+  openModal('warranty-modal');
+}
+
+async function saveWarranty() {
+  const product = $('wm-product').value.trim();
+  if(!product){ toast('Product name required','warn'); return; }
+  const fd = new FormData();
+  const id = $('wm-id').value || genId();
+  fd.append('id', id);
+  fd.append('product', product);
+  fd.append('purchase_date', $('wm-purchase-date').value);
+  fd.append('warranty_till', $('wm-warranty-till').value);
+  fd.append('notes', $('wm-notes').value);
+  
+  const d = S.warranty.find(x=>x.id===id);
+  if(d?.file_drive_links) fd.append('existing_file_links', d.file_drive_links);
+  
+  S.warrantyFiles.forEach(f => fd.append('files', f));
+  
+  overlay(true,'Saving...',30);
+  try {
+    if($('wm-id').value) await api('/api/warranty/'+id, {method:'PUT',body:fd});
+    else await api('/api/warranty', {method:'POST',body:fd});
+    await loadAll(); renderAll();
+    closeModal('warranty-modal'); overlay(false); toast('Warranty saved!');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
+
+function openWarrantyDetail(wid) {
+  const d = S.warranty.find(x=>x.id===wid); if(!d) return;
+  $('detail-modal-content').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+      <div>
+        <div style="font-family:'Lora',serif;font-size:1.1rem;font-weight:600;">${d.product}</div>
+      </div>
+      <button class="btn-xs primary" onclick="closeModal('detail-modal');openWarrantyModal('${d.id}')">Edit</button>
+    </div>
+    <div class="detail-section">
+      ${[['Purchase Date',fmtDate(d.purchase_date)],['Warranty Till',fmtDate(d.warranty_till)]].filter(([,v])=>v).map(([l,v])=>`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-val">${v}</span></div>`).join('')}
+    </div>
+    ${d.notes?`<div class="detail-section"><div class="detail-section-title">Notes</div><div style="font-size:0.82rem;">${d.notes}</div></div>`:''}
+    ${d.file_drive_links?(d.file_drive_links.split(',').filter(Boolean).map((l,i)=>`<a href="${getProxyUrl(l)}" target="_blank" style="display:inline-block;margin-right:8px;margin-bottom:4px;font-size:0.78rem;color:var(--accent);"><i class="bi bi-cloud me-1"></i>Invoice ${i+1}</a>`).join('')):''}`;
+  $('detail-modal-footer').innerHTML=`<button class="btn-secondary-brand" onclick="closeModal('detail-modal')">Close</button>`;
+  openModal('detail-modal');
+}
+
+async function deleteWarranty() {
+  const wid = $('wm-id').value; if(!wid) return;
+  if(!confirm('Delete this warranty record?')) return;
+  overlay(true,'Deleting...',50);
+  try {
+    await api('/api/warranty/'+wid,{method:'DELETE'});
+    await loadAll(); renderAll();
+    closeModal('warranty-modal'); overlay(false); toast('Deleted');
+  } catch(e){ overlay(false); toast(e.message,'err'); }
+}
 
 document.addEventListener('DOMContentLoaded', checkAuth);
 </script>
