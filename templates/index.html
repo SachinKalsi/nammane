@@ -1147,7 +1147,7 @@ async function submitPin(autoPin = null) {
 
         bootApp();
     } else { 
-        $('pin-error').textContent='Wrong PIN. Try again.'; 
+        $('pin-error').textContent=d.error || 'Wrong PIN. Try again.'; 
         pin=''; updateDots(); 
         if(autoPin) doLogout();
     }

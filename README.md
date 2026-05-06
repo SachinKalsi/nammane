@@ -12,7 +12,7 @@ Designed to be hosted entirely for **free** on the Oracle Cloud Free Tier, it us
 - **Insurance Tracker**: Keep all health, life, and vehicle insurance policies in one place. Never miss a premium due date.
 - **Documents Vault (WIP)**: Securely store Identity cards (PAN, Aadhaar, Passports), Property documents, and vehicle RCs.
 - **Zero Cost & Private**: Hosted on free-tier infrastructure. Data lives privately in your Google Drive and Google Sheets.
-- **PIN-Protected**: 4-digit PIN authentication with secure, 30-day server-side sessions.
+- **PIN-Protected & Secure**: 4-digit PIN authentication with secure, 30-day server-side sessions and built-in rate limiting (12-hour lockout after 5 failed attempts) to prevent brute-force attacks.
 - **Mobile-Responsive**: Clean, simple Bootstrap 5 frontend accessible from any device.
 
 ## 🛠 Tech Stack

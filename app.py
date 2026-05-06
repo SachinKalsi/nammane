@@ -16,16 +16,63 @@ from services.google_svc import DataService
 data_service = DataService()
 
 # ---------------------------------------------------------
-# AUTHENTICATION
+# AUTHENTICATION & RATE LIMITING
 # ---------------------------------------------------------
+import time
+
+FAILED_ATTEMPTS = {}
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_TIME = 43200  # 12 hours in seconds
+
+def get_client_ip():
+    if request.headers.getlist("X-Forwarded-For"):
+        return request.headers.getlist("X-Forwarded-For")[0]
+    return request.remote_addr
+
+def get_lockout_time_remaining(ip):
+    record = FAILED_ATTEMPTS.get(ip)
+    if not record or not record.get('lockout_until'):
+        return 0
+    remaining = record['lockout_until'] - time.time()
+    if remaining > 0:
+        return remaining
+    FAILED_ATTEMPTS.pop(ip, None)
+    return 0
+
+def format_time_remaining(seconds):
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    elif minutes > 0:
+        return f"{minutes}m"
+    return f"{int(seconds)}s"
+
+def record_failed_attempt(ip):
+    record = FAILED_ATTEMPTS.get(ip, {'count': 0, 'lockout_until': None})
+    record['count'] += 1
+    if record['count'] >= MAX_FAILED_ATTEMPTS:
+        record['lockout_until'] = time.time() + LOCKOUT_TIME
+    FAILED_ATTEMPTS[ip] = record
+
+def reset_failed_attempts(ip):
+    FAILED_ATTEMPTS.pop(ip, None)
 
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        ip = get_client_ip()
+        remaining = get_lockout_time_remaining(ip)
+        if remaining > 0:
+            return jsonify({'error': f'Too many failed attempts. Please try again after {format_time_remaining(remaining)}.'}), 429
+
         pin = request.headers.get('X-Access-Pin')
         if not pin or pin not in [READ_PIN, WRITE_PIN]:
+            record_failed_attempt(ip)
             return jsonify({'error': 'Unauthorized'}), 401
             
+        reset_failed_attempts(ip)
+        
         if request.method != 'GET' and pin != WRITE_PIN:
             return jsonify({'error': 'Forbidden - Write Role Required'}), 403
             
@@ -34,19 +81,36 @@ def login_required(f):
 
 @app.route('/api/login', methods=['POST'])
 def login():
+    ip = get_client_ip()
+    remaining = get_lockout_time_remaining(ip)
+    if remaining > 0:
+        return jsonify({'error': f'Too many failed attempts. Please try again after {format_time_remaining(remaining)}.'}), 429
+
     data = request.get_json(silent=True) or request.form.to_dict()
     pin = data.get('pin')
     if pin == str(WRITE_PIN):
+        reset_failed_attempts(ip)
         return jsonify({'success': True, 'role': 'write'})
     elif pin == str(READ_PIN):
+        reset_failed_attempts(ip)
         return jsonify({'success': True, 'role': 'read'})
+        
+    record_failed_attempt(ip)
     return jsonify({'error': 'Invalid PIN'}), 401
 
 @app.route('/api/drive/proxy', methods=['GET'])
 def proxy_drive_file():
+    ip = get_client_ip()
+    remaining = get_lockout_time_remaining(ip)
+    if remaining > 0:
+        return f"Too many failed attempts. Please try again after {format_time_remaining(remaining)}.", 429
+
     pin = request.args.get('pin')
     if not pin or pin not in [READ_PIN, WRITE_PIN]:
+        record_failed_attempt(ip)
         return "Unauthorized: Invalid PIN", 401
+        
+    reset_failed_attempts(ip)
     link = request.args.get('link')
     if not link:
         return "Missing link", 400
