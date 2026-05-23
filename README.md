@@ -40,7 +40,6 @@ Create a `.env` file in the root directory based on `.env.example`:
 ```env
 READ_PIN=1111
 WRITE_PIN=2222
-EXECUTION_MODE=google
 SPREADSHEET_ID=your_google_sheet_id
 DRIVE_ROOT_FOLDER_ID=your_google_drive_folder_id
 ```
@@ -73,6 +72,10 @@ DRIVE_ROOT_FOLDER_ID=your_google_drive_folder_id
    ```bash
    flask run
    ```
+
+## 📖 Developer Documentation
+
+For detailed information on the application architecture, Google Drive/Sheets database schemas, authentication control flows, and client-side processing (such as mobile browser camera capture, image cropping, and client-side PDF generation), please refer to the [DEVELOPER.md](DEVELOPER.md) file.
 
 ## 🛣 Roadmap
 The system structure is ready for expansion. Future modules include:

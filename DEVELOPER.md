@@ -36,10 +36,7 @@ The backend configures itself using a `.env` file located in the project root:
 READ_PIN=1111      # PIN code for read-only access
 WRITE_PIN=2222     # PIN code for full read/write/delete access
 
-# Execution mode: 'mock' (local testing) or 'google' (production)
-EXECUTION_MODE=google
-
-# Google APIs (Required if EXECUTION_MODE=google)
+# Google APIs Config
 SPREADSHEET_ID=your_google_spreadsheet_id_here
 DRIVE_ROOT_FOLDER_ID=your_google_drive_folder_id_here
 ```
