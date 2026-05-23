@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 <style>
 /* ── Variables ─────────────────────────────────────────────────────────── */
 :root {
@@ -969,6 +970,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
         <i class="bi bi-cloud-upload"></i>
         <p>Tap to upload PDF or image</p>
         <input type="file" id="im-files" multiple accept="image/*,application/pdf" style="display:none;">
+        <input type="file" id="im-camera" accept="image/*" capture="environment" style="display:none;">
       </div>
       <div class="file-list" id="im-file-list"></div>
     </div>
@@ -1030,6 +1032,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
         <i class="bi bi-cloud-upload"></i>
         <p>Tap to upload PDF or image</p>
         <input type="file" id="vm-files" multiple accept="image/*,application/pdf" style="display:none;">
+        <input type="file" id="vm-camera" accept="image/*" capture="environment" style="display:none;">
       </div>
       <div class="file-list" id="vm-file-list"></div>
     </div>
@@ -1073,6 +1076,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
         <i class="bi bi-cloud-upload"></i>
         <p>Tap to upload PDF or image</p>
         <input type="file" id="wm-files" multiple accept="image/*,application/pdf" style="display:none;">
+        <input type="file" id="wm-camera" accept="image/*" capture="environment" style="display:none;">
       </div>
       <div class="file-list" id="wm-file-list"></div>
     </div>
@@ -1099,6 +1103,50 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   </div>
 </div>
 
+<!-- Upload Choice Modal -->
+<div class="modal-overlay" id="upload-choice-modal" style="z-index: 550;">
+  <div class="modal-sheet" style="border-radius: 22px; max-width: 90%; width: 400px; padding: 24px; text-align: center; margin: auto;">
+    <div class="modal-handle"></div>
+    <div style="font-weight: 700; font-size: 1.1rem; color: var(--brand); margin-bottom: 20px;">Add Document / Image</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
+      <button class="btn-primary-brand" id="choice-camera-btn" style="height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; font-weight: 600; border: none; border-radius: var(--radius);">
+        <i class="bi bi-camera" style="font-size: 2.2rem;"></i>
+        <span>Take Photo</span>
+      </button>
+      <button class="btn-primary-brand" id="choice-file-btn" style="height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; font-weight: 600; border: none; border-radius: var(--radius);">
+        <i class="bi bi-file-earmark-plus" style="font-size: 2.2rem;"></i>
+        <span>Upload File(s)</span>
+      </button>
+    </div>
+    <button class="btn-secondary-brand" style="width: 100%; margin-top: 12px;" onclick="closeModal('upload-choice-modal')">Cancel</button>
+  </div>
+</div>
+
+<!-- Cropper Modal -->
+<div class="modal-overlay" id="cropper-modal" style="z-index: 600;">
+  <div class="modal-sheet" style="max-width: 90%; width: 500px; border-radius: 22px;">
+    <div class="modal-handle"></div>
+    <div style="font-weight:700;font-size:1.15rem;margin-bottom:12px;color:var(--brand); display: flex; justify-content: space-between; align-items: center;">
+      <span>Crop / Rotate Image</span>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-xs primary" onclick="cropperRotate(-90)" title="Rotate Left" style="padding: 2px 8px;"><i class="bi bi-arrow-counterclockwise"></i></button>
+        <button class="btn-xs primary" onclick="cropperRotate(90)" title="Rotate Right" style="padding: 2px 8px;"><i class="bi bi-arrow-clockwise"></i></button>
+      </div>
+    </div>
+    
+    <div style="background: #222; display: flex; justify-content: center; align-items: center; min-height: 300px; max-height: 50vh; border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;">
+      <img id="cropper-image" style="max-width: 100%; max-height: 100%; display: block;">
+    </div>
+    
+    <div class="modal-footer-btns">
+      <button class="btn-secondary-brand" onclick="closeCropperModal()">Cancel</button>
+      <button class="btn-primary-brand" onclick="applyCrop()">Apply Crop</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ════════════════════════════════════════════════════════
@@ -1165,6 +1213,319 @@ function closeModal(id) {
 function openModal(id) {
   $(id).classList.add('show');
   $(id).addEventListener('click', e => { if(e.target === $(id)) closeModal(id); }, {once:true});
+}
+
+// ════════════════════════════════════════════════════════
+// UPLOAD & CAMERA & PDF & CROPPING UTILITIES
+// ════════════════════════════════════════════════════════
+let currentUploadPrefix = '';
+let currentCropper = null;
+let currentCropIndex = null;
+let currentCropPrefix = null;
+
+function triggerUploadChoice(prefix) {
+  currentUploadPrefix = prefix;
+  openModal('upload-choice-modal');
+}
+
+// Hook up the buttons in upload-choice-modal
+$('choice-camera-btn').addEventListener('click', () => {
+  closeModal('upload-choice-modal');
+  if (currentUploadPrefix.startsWith('att_')) {
+    const row = $(currentUploadPrefix);
+    if (row) row.querySelector('.att-camera').click();
+  } else {
+    $(`${currentUploadPrefix}-camera`).click();
+  }
+});
+
+$('choice-file-btn').addEventListener('click', () => {
+  closeModal('upload-choice-modal');
+  if (currentUploadPrefix.startsWith('att_')) {
+    const row = $(currentUploadPrefix);
+    if (row) row.querySelector('.att-file').click();
+  } else {
+    $(`${currentUploadPrefix}-files`).click();
+  }
+});
+
+function handleFileSelection(prefix, filesList) {
+  let targetArray;
+  if (prefix === 'im') targetArray = S.insFiles;
+  else if (prefix === 'vm') targetArray = S.vaultFiles;
+  else if (prefix === 'wm') targetArray = S.warrantyFiles;
+  else {
+    const row = $(prefix);
+    if (row) {
+      if (!row.filesArray) row.filesArray = [];
+      targetArray = row.filesArray;
+    }
+  }
+
+  if (targetArray) {
+    Array.from(filesList).forEach(file => {
+      // Avoid duplicate file names/sizes for safety
+      if (!targetArray.some(x => x.name === file.name && x.size === file.size)) {
+        targetArray.push(file);
+      }
+    });
+    renderFilesList(prefix);
+  }
+}
+
+function removeUploadedFile(prefix, index) {
+  if (prefix === 'im') {
+    S.insFiles.splice(index, 1);
+  } else if (prefix === 'vm') {
+    S.vaultFiles.splice(index, 1);
+  } else if (prefix === 'wm') {
+    S.warrantyFiles.splice(index, 1);
+  } else {
+    const row = $(prefix);
+    if (row && row.filesArray) {
+      row.filesArray.splice(index, 1);
+    }
+  }
+  renderFilesList(prefix);
+}
+
+function renderFilesList(prefix) {
+  let files = [];
+  if (prefix === 'im') files = S.insFiles;
+  else if (prefix === 'vm') files = S.vaultFiles;
+  else if (prefix === 'wm') files = S.warrantyFiles;
+  else {
+    const row = $(prefix);
+    if (row) files = row.filesArray || [];
+  }
+
+  const containerId = prefix.startsWith('att_') ? null : `${prefix}-file-list`;
+  const container = containerId ? $(containerId) : $(prefix).querySelector('.att-file-list');
+  if (!container) return;
+
+  container.innerHTML = files.map((f, idx) => {
+    const isImg = f.type.startsWith('image/');
+    const sizeStr = (f.size / 1024).toFixed(0) + 'KB';
+    
+    let thumbHtml = '<i class="bi bi-file-earmark" style="font-size: 1.2rem; color: var(--accent);"></i>';
+    if (isImg) {
+      const url = URL.createObjectURL(f);
+      thumbHtml = `<img src="${url}" style="width: 28px; height: 28px; object-fit: cover; border-radius: 4px;" onload="URL.revokeObjectURL(this.src)">`;
+    }
+
+    return `
+      <div class="file-item" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+          ${thumbHtml}
+          <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
+            <span class="file-item-name" style="font-weight: 500;">${f.name}</span>
+            <span style="font-size: 0.7rem; color: var(--muted);">${sizeStr}</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          ${isImg ? `<button type="button" class="btn-xs primary" onclick="openCropper('${prefix}', ${idx})" style="padding: 2px 6px; font-size: 0.75rem;"><i class="bi bi-crop"></i> Crop</button>` : ''}
+          <button type="button" class="file-item-remove" onclick="removeUploadedFile('${prefix}', ${idx})" style="background: none; border: none; color: var(--danger); font-size: 1.1rem; padding: 2px; cursor: pointer;"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Cropper integration
+function openCropper(prefix, index) {
+  let files = [];
+  if (prefix === 'im') files = S.insFiles;
+  else if (prefix === 'vm') files = S.vaultFiles;
+  else if (prefix === 'wm') files = S.warrantyFiles;
+  else {
+    const row = $(prefix);
+    if (row) files = row.filesArray || [];
+  }
+
+  const file = files[index];
+  if (!file) return;
+
+  currentCropIndex = index;
+  currentCropPrefix = prefix;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const imgEl = $('cropper-image');
+    imgEl.src = e.target.result;
+    openModal('cropper-modal');
+    
+    if (currentCropper) {
+      currentCropper.destroy();
+    }
+    
+    currentCropper = new Cropper(imgEl, {
+      viewMode: 1,
+      autoCropArea: 1,
+      responsive: true,
+      checkOrientation: true
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function cropperRotate(deg) {
+  if (currentCropper) {
+    currentCropper.rotate(deg);
+  }
+}
+
+function closeCropperModal() {
+  closeModal('cropper-modal');
+  if (currentCropper) {
+    currentCropper.destroy();
+    currentCropper = null;
+  }
+}
+
+function applyCrop() {
+  if (!currentCropper) return;
+  
+  const canvas = currentCropper.getCroppedCanvas({
+    maxWidth: 2560,
+    maxHeight: 2560,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high'
+  });
+  
+  canvas.toBlob((blob) => {
+    let files = [];
+    if (currentCropPrefix === 'im') files = S.insFiles;
+    else if (currentCropPrefix === 'vm') files = S.vaultFiles;
+    else if (currentCropPrefix === 'wm') files = S.warrantyFiles;
+    else {
+      const row = $(currentCropPrefix);
+      if (row) files = row.filesArray || [];
+    }
+
+    const originalFile = files[currentCropIndex];
+    let name = originalFile.name;
+    if (!name.toLowerCase().endsWith('.jpg') && !name.toLowerCase().endsWith('.jpeg')) {
+      const dotIdx = name.lastIndexOf('.');
+      name = (dotIdx !== -1 ? name.substring(0, dotIdx) : name) + '.jpg';
+    }
+    
+    const croppedFile = new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() });
+    
+    files[currentCropIndex] = croppedFile;
+    
+    renderFilesList(currentCropPrefix);
+    closeCropperModal();
+    toast('Image cropped successfully');
+  }, 'image/jpeg', 0.92);
+}
+
+function compressImageFile(file) {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        const maxDim = 2560;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob((blob) => {
+          let name = file.name;
+          if (!name.toLowerCase().endsWith('.jpg') && !name.toLowerCase().endsWith('.jpeg')) {
+            const dotIdx = name.lastIndexOf('.');
+            name = (dotIdx !== -1 ? name.substring(0, dotIdx) : name) + '.jpg';
+          }
+          const compressed = new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() });
+          resolve(compressed);
+        }, 'image/jpeg', 0.92);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compileImagesToPDF(files, documentTitle = 'Combined Document') {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  let pageCount = 0;
+  
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (file.type.startsWith('image/')) {
+      const compressed = await compressImageFile(file);
+      
+      const dataUrl = await new Promise(res => {
+        const r = new FileReader();
+        r.onload = (e) => res(e.target.result);
+        r.readAsDataURL(compressed);
+      });
+      
+      if (pageCount > 0) {
+        pdf.addPage();
+      }
+      
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const imgWidth = imgProps.width;
+      const imgHeight = imgProps.height;
+      
+      const ratio = imgWidth / imgHeight;
+      let printWidth = pageWidth - 20;
+      let printHeight = printWidth / ratio;
+      
+      if (printHeight > (pageHeight - 20)) {
+        printHeight = pageHeight - 20;
+        printWidth = printHeight * ratio;
+      }
+      
+      const xOffset = (pageWidth - printWidth) / 2;
+      const yOffset = (pageHeight - printHeight) / 2;
+      
+      pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, printWidth, printHeight);
+      pageCount++;
+    }
+  }
+  
+  const pdfBlob = pdf.output('blob');
+  const filename = `${documentTitle.replace(/[^a-zA-Z0-9]/g, '_')}_Combined.pdf`;
+  return new File([pdfBlob], filename, { type: 'application/pdf' });
+}
+
+async function prepareUploadFiles(files, title) {
+  const images = files.filter(f => f.type.startsWith('image/'));
+  const nonImages = files.filter(f => !f.type.startsWith('image/'));
+  
+  if (images.length >= 2) {
+    const compiledPdf = await compileImagesToPDF(images, title);
+    return [compiledPdf, ...nonImages];
+  } else if (images.length === 1) {
+    const compressed = await compressImageFile(images[0]);
+    return [compressed, ...nonImages];
+  }
+  return files;
 }
 
 // ════════════════════════════════════════════════════════
@@ -1710,7 +2071,8 @@ function addAttachmentRow() {
       <div class="upload-zone att-zone" style="padding:14px;">
         <i class="bi bi-cloud-upload" style="font-size:1.3rem;"></i>
         <p>Tap to upload</p>
-        <input type="file" class="att-file" accept="image/*,application/pdf" style="display:none;">
+        <input type="file" class="att-file" accept="image/*,application/pdf" style="display:none;" multiple>
+        <input type="file" class="att-camera" accept="image/*" capture="environment" style="display:none;">
       </div>
       <div class="att-file-list"></div>
     </div>
@@ -1720,9 +2082,11 @@ function addAttachmentRow() {
     </div>`;
   const zone = div.querySelector('.att-zone');
   const finput = div.querySelector('.att-file');
-  const flist  = div.querySelector('.att-file-list');
-  zone.addEventListener('click',()=>finput.click());
-  finput.addEventListener('change',()=>renderFileList(finput.files, flist));
+  const caminput = div.querySelector('.att-camera');
+  div.filesArray = [];
+  zone.addEventListener('click',()=>triggerUploadChoice(id));
+  finput.addEventListener('change',()=> { handleFileSelection(id, finput.files); finput.value = ''; });
+  caminput.addEventListener('change',()=> { handleFileSelection(id, caminput.files); caminput.value = ''; });
   $('em-attachments').appendChild(div);
 }
 
@@ -1797,14 +2161,32 @@ async function saveEntry() {
   // Collect attachment rows
   const attRows = $('em-attachments').querySelectorAll('.repeat-row');
   const atts = [];
-  attRows.forEach((row,i)=>{
+  for (let i = 0; i < attRows.length; i++) {
+    const row = attRows[i];
     const n = row.querySelector('.att-name')?.value?.trim();
-    if(!n) return;
-    atts.push({ name:n, value:row.querySelector('.att-value')?.value||'', datetime:row.querySelector('.att-datetime')?.value||'', description:row.querySelector('.att-desc')?.value||'' });
-    const f = row.querySelector('.att-file')?.files?.[0];
-    if(f) fd.append('att_file_'+i, f);
-    atts[atts.length-1].file_index = f ? i : -1;
-  });
+    if(!n) continue;
+    
+    atts.push({
+      name: n,
+      value: row.querySelector('.att-value')?.value||'',
+      datetime: row.querySelector('.att-datetime')?.value||'',
+      description: row.querySelector('.att-desc')?.value||''
+    });
+    
+    const rowFiles = row.filesArray || [];
+    if (rowFiles.length > 0) {
+      overlay(true, `Processing files for ${n}...`, 10 + Math.round((i / attRows.length) * 40));
+      const prepared = await prepareUploadFiles(rowFiles, n);
+      if (prepared.length > 0) {
+        fd.append('att_file_' + i, prepared[0]);
+        atts[atts.length - 1].file_index = i;
+      } else {
+        atts[atts.length - 1].file_index = -1;
+      }
+    } else {
+      atts[atts.length - 1].file_index = -1;
+    }
+  }
   fd.append('attachments', JSON.stringify(atts));
 
 
@@ -1968,7 +2350,7 @@ function openInsuranceModal(iid=null) {
   $('im-notes').value    = ins?.notes||'';
   $('im-del-btn').style.display = ins ? '' : 'none';
   S.insFiles = [];
-  $('im-file-list').innerHTML='';
+  renderFilesList('im');
 
   // People multi-select
   const covered = (ins?.persons_covered||'').split(',').map(x=>x.trim());
@@ -1978,11 +2360,9 @@ function openInsuranceModal(iid=null) {
   openModal('insurance-modal');
 }
 
-$('im-upload-zone').addEventListener('click',()=>$('im-files').click());
-$('im-files').addEventListener('change',e=>{
-  S.insFiles = Array.from(e.target.files);
-  $('im-file-list').innerHTML = S.insFiles.map(f=>`<div class="file-item"><i class="bi bi-file-earmark"></i><span class="file-item-name">${f.name}</span></div>`).join('');
-});
+$('im-upload-zone').addEventListener('click',()=>triggerUploadChoice('im'));
+$('im-files').addEventListener('change',e=>{ handleFileSelection('im', e.target.files); e.target.value = ''; });
+$('im-camera').addEventListener('change',e=>{ handleFileSelection('im', e.target.files); e.target.value = ''; });
 
 async function saveInsurance() {
   const provider = $('im-provider').value.trim();
@@ -2002,9 +2382,13 @@ async function saveInsurance() {
   fd.append('premium_due_date', $('im-due').value);
   fd.append('renewal_date', $('im-renewal').value);
   fd.append('notes', $('im-notes').value);
-  S.insFiles.forEach(f=>fd.append('files',f));
+  
+  const title = (provider + '_' + ($('im-pname').value || 'Policy')).trim();
+  overlay(true,'Processing files...',15);
+  const filesToUpload = await prepareUploadFiles(S.insFiles, title);
+  filesToUpload.forEach(f=>fd.append('files',f));
 
-  overlay(true,'Saving insurance...',30);
+  overlay(true,'Saving insurance...',60);
   try {
     const iid = $('im-id').value;
     if(iid) await api('/api/insurance/'+iid,{method:'PUT',body:fd});
@@ -2074,17 +2458,15 @@ function openVaultModal(vid=null) {
   $('vm-desc').value   = d?.description||'';
   $('vm-del-btn').style.display = d ? '' : 'none';
   S.vaultFiles=[];
-  $('vm-file-list').innerHTML='';
+  renderFilesList('vm');
 
   $('vm-person').innerHTML = '<option value="">Family / All</option>'+S.people.map(p=>`<option value="${p.id}"${d?.person_id===p.id?' selected':''}>${p.name}</option>`).join('');
   openModal('vault-modal');
 }
 
-$('vm-upload-zone').addEventListener('click',()=>$('vm-files').click());
-$('vm-files').addEventListener('change',e=>{
-  S.vaultFiles=Array.from(e.target.files);
-  $('vm-file-list').innerHTML=S.vaultFiles.map(f=>`<div class="file-item"><i class="bi bi-file-earmark"></i><span class="file-item-name">${f.name}</span></div>`).join('');
-});
+$('vm-upload-zone').addEventListener('click',()=>triggerUploadChoice('vm'));
+$('vm-files').addEventListener('change',e=>{ handleFileSelection('vm', e.target.files); e.target.value = ''; });
+$('vm-camera').addEventListener('change',e=>{ handleFileSelection('vm', e.target.files); e.target.value = ''; });
 $('vm-type').addEventListener('change', e => {
   $('vm-name-custom').style.display = e.target.value === 'Other' ? 'block' : 'none';
 });
@@ -2102,9 +2484,14 @@ async function saveVaultDoc() {
   fd.append('issue_date', $('vm-issue').value);
   fd.append('expiry_date', $('vm-expiry').value);
   fd.append('description', $('vm-desc').value);
-  S.vaultFiles.forEach(f=>fd.append('files',f));
+  
+  const personName = $('vm-person').value ? (S.people.find(p=>p.id===$('vm-person').value)?.name || 'Family') : 'Family';
+  const title = (personName + '_' + name).trim();
+  overlay(true,'Processing files...',15);
+  const filesToUpload = await prepareUploadFiles(S.vaultFiles, title);
+  filesToUpload.forEach(f=>fd.append('files',f));
 
-  overlay(true,'Saving document...',30);
+  overlay(true,'Saving document...',60);
   try {
     const vid = $('vm-id').value;
     if(vid) await api('/api/vault/'+vid,{method:'PUT',body:fd});
@@ -2168,11 +2555,9 @@ function renderWarrantyPage() {
   `).join('');
 }
 
-$('wm-upload-zone').addEventListener('click',()=>$('wm-files').click());
-$('wm-files').addEventListener('change',e=>{
-  S.warrantyFiles=Array.from(e.target.files);
-  $('wm-file-list').innerHTML=S.warrantyFiles.map(f=>`<div class="file-item"><i class="bi bi-file-earmark"></i><span class="file-item-name">${f.name}</span></div>`).join('');
-});
+$('wm-upload-zone').addEventListener('click',()=>triggerUploadChoice('wm'));
+$('wm-files').addEventListener('change',e=>{ handleFileSelection('wm', e.target.files); e.target.value = ''; });
+$('wm-camera').addEventListener('change',e=>{ handleFileSelection('wm', e.target.files); e.target.value = ''; });
 
 function openWarrantyModal(wid=null) {
   S.editingWarrantyId = wid;
@@ -2184,7 +2569,7 @@ function openWarrantyModal(wid=null) {
   $('wm-notes').value = d?.notes||'';
   $('wm-del-btn').style.display = d ? '' : 'none';
   S.warrantyFiles=[];
-  $('wm-file-list').innerHTML='';
+  renderFilesList('wm');
   openModal('warranty-modal');
 }
 
@@ -2202,9 +2587,11 @@ async function saveWarranty() {
   const d = S.warranty.find(x=>x.id===id);
   if(d?.file_drive_links) fd.append('existing_file_links', d.file_drive_links);
   
-  S.warrantyFiles.forEach(f => fd.append('files', f));
+  overlay(true,'Processing files...',15);
+  const filesToUpload = await prepareUploadFiles(S.warrantyFiles, product);
+  filesToUpload.forEach(f => fd.append('files', f));
   
-  overlay(true,'Saving...',30);
+  overlay(true,'Saving...',60);
   try {
     if($('wm-id').value) await api('/api/warranty/'+id, {method:'PUT',body:fd});
     else await api('/api/warranty', {method:'POST',body:fd});
