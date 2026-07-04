@@ -199,6 +199,8 @@ class DataService:
     def process_entry_attachments(self, entry_id, req):
         if not self.sheets_service: 
             return
+        if 'attachments' not in req.form:
+            return
             
         atts_str = req.form.get('attachments', '[]')
         try:
@@ -225,28 +227,35 @@ class DataService:
                 
                 target_folder = self._ensure_drive_path(['MedicalReports', person_name, folder_name])
 
-            for key, file_obj in req.files.items():
-                if key.startswith('att_file_') and file_obj and file_obj.filename:
+            for key in req.files.keys():
+                if key.startswith('att_file_'):
                     idx = int(key.split('_')[-1])
-                    file_metadata = {
-                        'name': file_obj.filename,
-                        'parents': [target_folder]
-                    }
-                    media = MediaIoBaseUpload(io.BytesIO(file_obj.read()), mimetype=file_obj.mimetype or 'application/octet-stream', resumable=True)
-                    with self.lock:
-                        file = self.drive_service.files().create(body=file_metadata, media_body=media, fields='webViewLink').execute()
-                    saved_files[idx] = file.get('webViewLink')
+                    saved_files[idx] = []
+                    for file_obj in req.files.getlist(key):
+                        if file_obj and file_obj.filename:
+                            file_metadata = {
+                                'name': file_obj.filename,
+                                'parents': [target_folder]
+                            }
+                            media = MediaIoBaseUpload(io.BytesIO(file_obj.read()), mimetype=file_obj.mimetype or 'application/octet-stream', resumable=True)
+                            with self.lock:
+                                file = self.drive_service.files().create(body=file_metadata, media_body=media, fields='webViewLink').execute()
+                            saved_files[idx].append(file.get('webViewLink'))
                     
         existing_atts = [a for a in self.get_records('Health_Attachments') if a['entry_id'] == entry_id]
-        for ext in existing_atts:
-            self.delete_record('Health_Attachments', ext['id'])
+        existing_by_id = {a.get('id'): a for a in existing_atts if a.get('id')}
+        submitted_ids = set()
 
         for att in atts:
             idx = att.get('file_index', -1)
             ext_link = att.get('existing_file_link', '')
-            new_path = saved_files.get(idx, ext_link)
+            new_links = saved_files.get(idx, [])
+            all_links = [p for p in ext_link.split(',') if p] + [p for p in new_links if p]
+            new_path = ",".join(all_links)
+            att_id = att.get('id') if att.get('id') in existing_by_id else str(uuid.uuid4())
+            submitted_ids.add(att_id)
             att_data = {
-                'id': str(uuid.uuid4()),
+                'id': att_id,
                 'entry_id': entry_id,
                 'name': att.get('name'),
                 'value': att.get('value'),
@@ -255,7 +264,14 @@ class DataService:
                 'file_path': new_path,
                 'file_drive_link': new_path
             }
-            self.create_record('Health_Attachments', att_data)
+            if att_id in existing_by_id:
+                self.update_record('Health_Attachments', att_id, att_data)
+            else:
+                self.create_record('Health_Attachments', att_data)
+
+        for ext in existing_atts:
+            if ext.get('id') not in submitted_ids:
+                self.delete_record('Health_Attachments', ext['id'])
 
     def stream_file(self, web_view_link):
         if not self.drive_service or not web_view_link:

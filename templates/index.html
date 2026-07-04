@@ -1192,6 +1192,7 @@ const genId = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toSt
 const initials = n => (n||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
 const getPerson = id => S.people.find(p=>p.id===id) || {};
 const daysUntil = d => { if(!d) return 9999; return Math.ceil((new Date(d)-new Date())/(1000*60*60*24)); };
+const escapeAttr = v => String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 function toast(msg, type='ok') {
   const el = $('toast');
@@ -1289,6 +1290,75 @@ function removeUploadedFile(prefix, index) {
   renderFilesList(prefix);
 }
 
+function parseFileLinks(csv='') {
+  return String(csv||'').split(',').map(x=>x.trim()).filter(Boolean);
+}
+
+function getExistingFileLinks(prefix) {
+  const container = $(`${prefix}-file-list`);
+  if (!container) return [];
+  try {
+    return JSON.parse(container.dataset.existingFileLinks || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function setExistingFileLinks(prefix, links) {
+  const container = $(`${prefix}-file-list`);
+  if (!container) return;
+  container.dataset.existingFileLinks = JSON.stringify(links || []);
+  renderFilesList(prefix);
+}
+
+function removeExistingFile(prefix, index) {
+  const links = getExistingFileLinks(prefix);
+  links.splice(index, 1);
+  setExistingFileLinks(prefix, links);
+}
+
+function getAttachmentExistingFileLinks(row) {
+  try {
+    return JSON.parse(row.dataset.existingFileLinks || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function setAttachmentExistingFileLinks(row, links) {
+  row.dataset.existingFileLinks = JSON.stringify(links || []);
+}
+
+function attachmentExistingFilesHtml(rowId, links) {
+  return (links || []).map((link, idx) => `
+    <div class="file-item existing-file-item" data-existing-file-index="${idx}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+        <i class="bi bi-file-earmark-pdf" style="font-size:1.2rem;color:var(--accent);"></i>
+        <span class="file-item-name" style="font-weight:500;">Existing file ${idx + 1}</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <a href="${escapeAttr(getProxyUrl(link))}" target="_blank" style="font-size:0.75rem;color:var(--accent);white-space:nowrap;">View</a>
+        <button type="button" class="file-item-remove" onclick="removeExistingAttachmentFile('${rowId}', ${idx})" style="background:none;border:none;color:var(--danger);font-size:1.1rem;padding:2px;cursor:pointer;"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAttachmentExistingFiles(row) {
+  const container = row.querySelector('.att-existing-file-list');
+  if (!container) return;
+  container.innerHTML = attachmentExistingFilesHtml(row.id, getAttachmentExistingFileLinks(row));
+}
+
+function removeExistingAttachmentFile(rowId, index) {
+  const row = $(rowId);
+  if (!row) return;
+  const links = getAttachmentExistingFileLinks(row);
+  links.splice(index, 1);
+  setAttachmentExistingFileLinks(row, links);
+  renderAttachmentExistingFiles(row);
+}
+
 function renderFilesList(prefix) {
   let files = [];
   if (prefix === 'im') files = S.insFiles;
@@ -1302,8 +1372,23 @@ function renderFilesList(prefix) {
   const containerId = prefix.startsWith('att_') ? null : `${prefix}-file-list`;
   const container = containerId ? $(containerId) : $(prefix).querySelector('.att-file-list');
   if (!container) return;
+  const existingLinks = prefix.startsWith('att_') ? [] : getExistingFileLinks(prefix);
+  const existingHtml = existingLinks.map((link, idx) => `
+    <div class="file-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+        <i class="bi bi-file-earmark-pdf" style="font-size:1.2rem;color:var(--accent);"></i>
+        <div style="display:flex;flex-direction:column;min-width:0;flex:1;">
+          <span class="file-item-name" style="font-weight:500;">Existing file ${idx + 1}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <a href="${escapeAttr(getProxyUrl(link))}" target="_blank" class="btn-xs primary" style="padding:2px 6px;font-size:0.75rem;text-decoration:none;">View</a>
+        <button type="button" class="file-item-remove" onclick="removeExistingFile('${prefix}', ${idx})" style="background:none;border:none;color:var(--danger);font-size:1.1rem;padding:2px;cursor:pointer;"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+  `).join('');
 
-  container.innerHTML = files.map((f, idx) => {
+  const uploadHtml = files.map((f, idx) => {
     const isImg = f.type.startsWith('image/');
     const sizeStr = (f.size / 1024).toFixed(0) + 'KB';
     
@@ -1329,6 +1414,8 @@ function renderFilesList(prefix) {
       </div>
     `;
   }).join('');
+
+  container.innerHTML = existingHtml + uploadHtml;
 }
 
 // Cropper integration
@@ -2039,31 +2126,40 @@ function openEntryModal(eid=null) {
   // Person dropdown
   $('em-person').innerHTML = S.people.map(p=>`<option value="${p.id}"${e?.person_id===p.id?' selected':''}>${p.name}</option>`).join('');
 
-  // Attachments — start with one empty row
+  // Attachments
   $('em-attachments').innerHTML='';
-  addAttachmentRow();
+  const existingAtts = eid ? S.attachments.filter(a => a.entry_id === eid) : [];
+  if (existingAtts.length) {
+    existingAtts.forEach(a => addAttachmentRow(a));
+  } else {
+    addAttachmentRow();
+  }
 
   openModal('entry-modal');
 }
 
-function addAttachmentRow() {
+function addAttachmentRow(att=null) {
   const id = 'att_'+genId().slice(0,8);
+  const existingLinks = parseFileLinks(att?.file_drive_link || att?.file_path || '');
   const div = document.createElement('div');
   div.className='repeat-row'; div.id=id;
+  div.dataset.attachmentId = att?.id || '';
+  setAttachmentExistingFileLinks(div, existingLinks);
+  const existingFilesHtml = attachmentExistingFilesHtml(id, existingLinks);
   div.innerHTML=`
     <button class="remove-row-btn" onclick="this.closest('.repeat-row').remove()"><i class="bi bi-x-lg"></i></button>
     <div class="form-group">
       <label class="form-label">Name *</label>
-      <input type="text" class="form-control att-name" placeholder="Blood Report, BP Reading, Prescription...">
+      <input type="text" class="form-control att-name" placeholder="Blood Report, BP Reading, Prescription..." value="${escapeAttr(att?.name)}">
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <div class="form-group">
         <label class="form-label">Value (optional)</label>
-        <input type="text" class="form-control att-value" placeholder="120/80 mmHg">
+        <input type="text" class="form-control att-value" placeholder="120/80 mmHg" value="${escapeAttr(att?.value)}">
       </div>
       <div class="form-group">
         <label class="form-label">Date & Time</label>
-        <input type="datetime-local" class="form-control att-datetime">
+        <input type="datetime-local" class="form-control att-datetime" value="${escapeAttr(att?.datetime)}">
       </div>
     </div>
     <div class="form-group">
@@ -2074,11 +2170,12 @@ function addAttachmentRow() {
         <input type="file" class="att-file" accept="image/*,application/pdf" style="display:none;" multiple>
         <input type="file" class="att-camera" accept="image/*" capture="environment" style="display:none;">
       </div>
+      <div class="att-existing-file-list">${existingFilesHtml}</div>
       <div class="att-file-list"></div>
     </div>
     <div class="form-group" style="margin-bottom:0;">
       <label class="form-label">Description</label>
-      <input type="text" class="form-control att-desc" placeholder="Optional notes">
+      <input type="text" class="form-control att-desc" placeholder="Optional notes" value="${escapeAttr(att?.description)}">
     </div>`;
   const zone = div.querySelector('.att-zone');
   const finput = div.querySelector('.att-file');
@@ -2167,10 +2264,12 @@ async function saveEntry() {
     if(!n) continue;
     
     atts.push({
+      id: row.dataset.attachmentId || '',
       name: n,
       value: row.querySelector('.att-value')?.value||'',
       datetime: row.querySelector('.att-datetime')?.value||'',
-      description: row.querySelector('.att-desc')?.value||''
+      description: row.querySelector('.att-desc')?.value||'',
+      existing_file_link: getAttachmentExistingFileLinks(row).join(',')
     });
     
     const rowFiles = row.filesArray || [];
@@ -2178,7 +2277,7 @@ async function saveEntry() {
       overlay(true, `Processing files for ${n}...`, 10 + Math.round((i / attRows.length) * 40));
       const prepared = await prepareUploadFiles(rowFiles, n);
       if (prepared.length > 0) {
-        fd.append('att_file_' + i, prepared[0]);
+        prepared.forEach(file => fd.append('att_file_' + i, file));
         atts[atts.length - 1].file_index = i;
       } else {
         atts[atts.length - 1].file_index = -1;
@@ -2246,7 +2345,7 @@ async function openEntryDetail(eid) {
           ${a.value?`<div style="font-size:0.9rem;font-weight:600;color:var(--brand);margin-top:2px;">${a.value}</div>`:''}
           ${a.datetime?`<div style="font-size:0.72rem;color:var(--muted);">${new Date(a.datetime).toLocaleString('en-IN')}</div>`:''}
           ${a.description?`<div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">${a.description}</div>`:''}
-          ${a.file_drive_link?`<a href="${getProxyUrl(a.file_drive_link)}" target="_blank" style="font-size:0.75rem;color:var(--accent);margin-top:6px;display:inline-block;"><i class="bi bi-cloud me-1"></i>View file in Drive</a>`:''}
+          ${parseFileLinks(a.file_drive_link).map((link,i)=>`<a href="${getProxyUrl(link)}" target="_blank" style="font-size:0.75rem;color:var(--accent);margin-top:6px;margin-right:8px;display:inline-block;"><i class="bi bi-cloud me-1"></i>File ${i+1}</a>`).join('')}
         </div>`).join('')}
       </div>`:''}
 
@@ -2350,7 +2449,7 @@ function openInsuranceModal(iid=null) {
   $('im-notes').value    = ins?.notes||'';
   $('im-del-btn').style.display = ins ? '' : 'none';
   S.insFiles = [];
-  renderFilesList('im');
+  setExistingFileLinks('im', parseFileLinks(ins?.file_drive_links));
 
   // People multi-select
   const covered = (ins?.persons_covered||'').split(',').map(x=>x.trim());
@@ -2387,6 +2486,7 @@ async function saveInsurance() {
   overlay(true,'Processing files...',15);
   const filesToUpload = await prepareUploadFiles(S.insFiles, title);
   filesToUpload.forEach(f=>fd.append('files',f));
+  fd.append('existing_file_links', getExistingFileLinks('im').join(','));
 
   overlay(true,'Saving insurance...',60);
   try {
@@ -2458,7 +2558,7 @@ function openVaultModal(vid=null) {
   $('vm-desc').value   = d?.description||'';
   $('vm-del-btn').style.display = d ? '' : 'none';
   S.vaultFiles=[];
-  renderFilesList('vm');
+  setExistingFileLinks('vm', parseFileLinks(d?.file_drive_links));
 
   $('vm-person').innerHTML = '<option value="">Family / All</option>'+S.people.map(p=>`<option value="${p.id}"${d?.person_id===p.id?' selected':''}>${p.name}</option>`).join('');
   openModal('vault-modal');
@@ -2490,6 +2590,7 @@ async function saveVaultDoc() {
   overlay(true,'Processing files...',15);
   const filesToUpload = await prepareUploadFiles(S.vaultFiles, title);
   filesToUpload.forEach(f=>fd.append('files',f));
+  fd.append('existing_file_links', getExistingFileLinks('vm').join(','));
 
   overlay(true,'Saving document...',60);
   try {
@@ -2569,7 +2670,7 @@ function openWarrantyModal(wid=null) {
   $('wm-notes').value = d?.notes||'';
   $('wm-del-btn').style.display = d ? '' : 'none';
   S.warrantyFiles=[];
-  renderFilesList('wm');
+  setExistingFileLinks('wm', parseFileLinks(d?.file_drive_links));
   openModal('warranty-modal');
 }
 
@@ -2584,8 +2685,7 @@ async function saveWarranty() {
   fd.append('warranty_till', $('wm-warranty-till').value);
   fd.append('notes', $('wm-notes').value);
   
-  const d = S.warranty.find(x=>x.id===id);
-  if(d?.file_drive_links) fd.append('existing_file_links', d.file_drive_links);
+  fd.append('existing_file_links', getExistingFileLinks('wm').join(','));
   
   overlay(true,'Processing files...',15);
   const filesToUpload = await prepareUploadFiles(S.warrantyFiles, product);
