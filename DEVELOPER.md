@@ -292,3 +292,55 @@ Launch the Flask development server:
 python3 app.py
 ```
 By default, the application serves on port `5001`. You can access it on `http://127.0.0.1:5001`.
+
+---
+
+## 7. Automated Deploy (GitHub → Oracle Cloud)
+
+Every push to `main` triggers `.github/workflows/deploy.yml`, which SSHs into the VM and runs `scripts/deploy.sh` (`git pull` / `pip install` / `systemctl restart nammane`).
+
+### One-time server setup
+
+1. Ensure the app lives in a git clone (example: `/home/ubuntu/nammane`) with `venv/` and a working `nammane` systemd unit.
+2. Allow passwordless restart for the deploy user only:
+   ```bash
+   sudo tee /etc/sudoers.d/nammane-deploy >/dev/null <<'EOF'
+   ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl restart nammane, /bin/systemctl status nammane
+   EOF
+   sudo chmod 440 /etc/sudoers.d/nammane-deploy
+   ```
+   (Replace `ubuntu` with your SSH username.)
+3. Generate a deploy key on your laptop (do **not** reuse your personal GitHub key if you prefer isolation):
+   ```bash
+   ssh-keygen -t ed25519 -C "nammane-github-deploy" -f ~/.ssh/nammane_deploy -N ""
+   ```
+4. Append the **public** key to the server:
+   ```bash
+   ssh-copy-id -i ~/.ssh/nammane_deploy.pub ubuntu@YOUR_SERVER_IP
+   ```
+5. Confirm SSH works without a password:
+   ```bash
+   ssh -i ~/.ssh/nammane_deploy ubuntu@YOUR_SERVER_IP 'cd /home/ubuntu/nammane && bash scripts/deploy.sh'
+   ```
+   (After this commit is pulled once manually, or run the inline `git pull` commands yourself the first time.)
+
+### GitHub repository secrets
+
+Repo → **Settings → Secrets and variables → Actions** → add:
+
+| Secret | Example |
+|--------|---------|
+| `DEPLOY_HOST` | `132.226.x.x` (Oracle public IP) |
+| `DEPLOY_USER` | `ubuntu` |
+| `DEPLOY_PATH` | `/home/ubuntu/nammane` |
+| `DEPLOY_SSH_KEY` | Full contents of `~/.ssh/nammane_deploy` (private key) |
+
+Optional: `DEPLOY_PORT` if SSH is not on 22 (uncomment `port` in the workflow).
+
+### After setup
+
+- Push to `main` → Actions tab shows **Deploy to Oracle Cloud** → server updates automatically.
+- Or trigger **Run workflow** manually from the Actions tab.
+- Manual fallback on the server: `bash scripts/deploy.sh`.
+
+**Note:** `git reset --hard origin/main` means local edits on the server are discarded on each deploy. Keep secrets (`.env`, `credentials.json`, `token.json`) outside git (already gitignored) so they survive resets.

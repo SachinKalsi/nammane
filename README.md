@@ -78,6 +78,12 @@ DRIVE_ROOT_FOLDER_ID=your_google_drive_folder_id
 
 For detailed information on the application architecture, Google Drive/Sheets database schemas, authentication control flows, and client-side processing (mobile camera capture, image cropping, compression, and PDF generation including incremental edit merges), please refer to the [DEVELOPER.md](DEVELOPER.md) file.
 
+## 🚀 Deploy
+
+Pushing to `main` auto-deploys to the Oracle Cloud VM via GitHub Actions (git sync → `pip install` → `systemctl restart nammane`).
+
+One-time setup (SSH key + GitHub secrets + passwordless `systemctl`): see [DEVELOPER.md §7](DEVELOPER.md#7-automated-deploy-github--oracle-cloud).
+
 ## 🛣 Roadmap
 The system structure is ready for expansion. Future modules include:
 - **Finance**: Investments, Loans, Taxes
