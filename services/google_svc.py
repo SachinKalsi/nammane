@@ -275,23 +275,24 @@ class DataService:
 
     def stream_file(self, web_view_link):
         if not self.drive_service or not web_view_link:
-            return None, None
+            return None, None, None
             
         # extract file_id from link like https://drive.google.com/file/d/xxxx/view
         try:
             file_id = web_view_link.split('/d/')[1].split('/')[0]
         except IndexError:
-            return None, None
+            return None, None, None
             
         with self.lock:
             try:
-                # Get the file metadata to find its mimeType
-                meta = self.drive_service.files().get(fileId=file_id, fields='mimeType').execute()
+                # Get the file metadata to find its mimeType and name
+                meta = self.drive_service.files().get(fileId=file_id, fields='mimeType,name').execute()
                 mime = meta.get('mimeType', 'application/octet-stream')
+                name = meta.get('name') or ''
                 
                 # Fetch raw bytes
                 data = self.drive_service.files().get_media(fileId=file_id).execute()
-                return data, mime
+                return data, mime, name
             except Exception as e:
                 print(f"Failed to stream proxy file: {e}")
-                return None, None
+                return None, None, None

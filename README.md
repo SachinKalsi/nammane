@@ -11,6 +11,7 @@ Designed to be hosted entirely for **free** on the Oracle Cloud Free Tier, it us
 - **Health Module**: Track medical visits, upload prescriptions, blood reports, and manage ongoing family medicines.
 - **Insurance Tracker**: Keep all health, life, and vehicle insurance policies in one place. Never miss a premium due date.
 - **Documents Vault (WIP)**: Securely store Identity cards (PAN, Aadhaar, Passports), Property documents, and vehicle RCs.
+- **Smart Photo Uploads**: Photos are compressed in the browser before upload. Two or more images (including ones added later on edit) are auto-merged into a single multi-page PDF. Existing PDFs are left as separate files.
 - **Zero Cost & Private**: Hosted on free-tier infrastructure. Data lives privately in your Google Drive and Google Sheets.
 - **PIN-Protected & Secure**: 4-digit PIN authentication with secure, 30-day server-side sessions and built-in rate limiting (12-hour lockout after 5 failed attempts) to prevent brute-force attacks.
 - **Mobile-Responsive**: Clean, simple Bootstrap 5 frontend accessible from any device.
@@ -75,7 +76,7 @@ DRIVE_ROOT_FOLDER_ID=your_google_drive_folder_id
 
 ## 📖 Developer Documentation
 
-For detailed information on the application architecture, Google Drive/Sheets database schemas, authentication control flows, and client-side processing (such as mobile browser camera capture, image cropping, and client-side PDF generation), please refer to the [DEVELOPER.md](DEVELOPER.md) file.
+For detailed information on the application architecture, Google Drive/Sheets database schemas, authentication control flows, and client-side processing (mobile camera capture, image cropping, compression, and PDF generation including incremental edit merges), please refer to the [DEVELOPER.md](DEVELOPER.md) file.
 
 ## 🛣 Roadmap
 The system structure is ready for expansion. Future modules include:

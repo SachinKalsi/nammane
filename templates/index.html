@@ -1330,14 +1330,17 @@ function setAttachmentExistingFileLinks(row, links) {
 }
 
 function attachmentExistingFilesHtml(rowId, links) {
-  return (links || []).map((link, idx) => `
+  const row = $(rowId);
+  const baseName = (row?.querySelector('.att-name')?.value || 'attachment').trim();
+  const list = links || [];
+  return list.map((link, idx) => `
     <div class="file-item existing-file-item" data-existing-file-index="${idx}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
       <div style="display:flex;align-items:center;gap:8px;min-width:0;">
         <i class="bi bi-file-earmark-pdf" style="font-size:1.2rem;color:var(--accent);"></i>
         <span class="file-item-name" style="font-weight:500;">Existing file ${idx + 1}</span>
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
-        <a href="${escapeAttr(getProxyUrl(link))}" target="_blank" style="font-size:0.75rem;color:var(--accent);white-space:nowrap;">View</a>
+        <a href="${escapeAttr(getProxyUrl(link, fileDownloadName(baseName, idx, list.length)))}" target="_blank" style="font-size:0.75rem;color:var(--accent);white-space:nowrap;">View</a>
         <button type="button" class="file-item-remove" onclick="removeExistingAttachmentFile('${rowId}', ${idx})" style="background:none;border:none;color:var(--danger);font-size:1.1rem;padding:2px;cursor:pointer;"><i class="bi bi-trash"></i></button>
       </div>
     </div>
@@ -1373,6 +1376,7 @@ function renderFilesList(prefix) {
   const container = containerId ? $(containerId) : $(prefix).querySelector('.att-file-list');
   if (!container) return;
   const existingLinks = prefix.startsWith('att_') ? [] : getExistingFileLinks(prefix);
+  const baseName = getFormDownloadName(prefix);
   const existingHtml = existingLinks.map((link, idx) => `
     <div class="file-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
       <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
@@ -1382,7 +1386,7 @@ function renderFilesList(prefix) {
         </div>
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
-        <a href="${escapeAttr(getProxyUrl(link))}" target="_blank" class="btn-xs primary" style="padding:2px 6px;font-size:0.75rem;text-decoration:none;">View</a>
+        <a href="${escapeAttr(getProxyUrl(link, fileDownloadName(baseName, idx, existingLinks.length)))}" target="_blank" class="btn-xs primary" style="padding:2px 6px;font-size:0.75rem;text-decoration:none;">View</a>
         <button type="button" class="file-item-remove" onclick="removeExistingFile('${prefix}', ${idx})" style="background:none;border:none;color:var(--danger);font-size:1.1rem;padding:2px;cursor:pointer;"><i class="bi bi-trash"></i></button>
       </div>
     </div>
@@ -1615,6 +1619,76 @@ async function prepareUploadFiles(files, title) {
   return files;
 }
 
+async function fetchDriveFileAsFile(link) {
+  if (!link) return null;
+  try {
+    const res = await fetch(getProxyUrl(link));
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const mime = (res.headers.get('Content-Type') || blob.type || 'application/octet-stream').split(';')[0].trim();
+    let ext = 'bin';
+    if (mime === 'image/jpeg' || mime === 'image/jpg') ext = 'jpg';
+    else if (mime === 'image/png') ext = 'png';
+    else if (mime === 'image/webp') ext = 'webp';
+    else if (mime === 'image/gif') ext = 'gif';
+    else if (mime === 'application/pdf') ext = 'pdf';
+    return new File([blob], `existing_${Date.now()}.${ext}`, { type: mime, lastModified: Date.now() });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Merge newly selected files with existing Drive files for PDF compilation.
+ * - No new files → skip Drive fetch entirely.
+ * - Existing images + new images (total ≥ 2) → compile one PDF; drop those image links.
+ * - Existing PDFs / non-images → left separate (kept as links).
+ */
+async function prepareUploadWithExisting(newFiles, existingLinks, title) {
+  const links = (existingLinks || []).filter(Boolean);
+  const files = Array.from(newFiles || []);
+
+  if (files.length === 0) {
+    return { filesToUpload: [], existingLinksToKeep: links };
+  }
+
+  const newImages = files.filter(f => f.type.startsWith('image/'));
+  const newNonImages = files.filter(f => !f.type.startsWith('image/'));
+
+  // No new images → nothing to merge; don't pull existing from Drive
+  if (newImages.length === 0 || links.length === 0) {
+    return {
+      filesToUpload: await prepareUploadFiles(files, title),
+      existingLinksToKeep: links
+    };
+  }
+
+  // Pull existing only to find images that can merge with the new ones
+  const existingImages = [];
+  const existingNonImageLinks = [];
+  for (const link of links) {
+    const file = await fetchDriveFileAsFile(link);
+    if (file && file.type.startsWith('image/')) {
+      existingImages.push(file);
+    } else {
+      // PDF, other non-image, or fetch failure — leave separate
+      existingNonImageLinks.push(link);
+    }
+  }
+
+  const allImages = [...existingImages, ...newImages];
+  if (allImages.length >= 2) {
+    const filesToUpload = await prepareUploadFiles([...allImages, ...newNonImages], title);
+    return { filesToUpload, existingLinksToKeep: existingNonImageLinks };
+  }
+
+  // Only one image total (no mergeable existing images) — compress new, keep all existing links
+  return {
+    filesToUpload: await prepareUploadFiles(files, title),
+    existingLinksToKeep: links
+  };
+}
+
 // ════════════════════════════════════════════════════════
 // AUTH
 // ════════════════════════════════════════════════════════
@@ -1694,10 +1768,33 @@ async function bootApp() {
   renderAll();
 }
 
-function getProxyUrl(link) {
+function getProxyUrl(link, name='') {
   if(!link) return '';
   const pin = S.currentPin || localStorage.getItem('nammane_pin') || '';
-  return API + '/api/drive/proxy?link=' + encodeURIComponent(link.trim()) + '&pin=' + encodeURIComponent(pin);
+  let url = API + '/api/drive/proxy?link=' + encodeURIComponent(link.trim()) + '&pin=' + encodeURIComponent(pin);
+  if (name) url += '&name=' + encodeURIComponent(String(name).trim());
+  return url;
+}
+
+function fileDownloadName(baseName, index=0, total=1) {
+  const base = String(baseName || 'document').trim() || 'document';
+  if (total <= 1) return base;
+  return `${base}_${index + 1}`;
+}
+
+function getFormDownloadName(prefix) {
+  if (prefix === 'im') return ($('im-pname')?.value || $('im-provider')?.value || 'insurance').trim();
+  if (prefix === 'vm') {
+    const type = $('vm-type')?.value;
+    if (type === 'Other') return ($('vm-name-custom')?.value || 'document').trim();
+    return (type || 'document').trim();
+  }
+  if (prefix === 'wm') return ($('wm-product')?.value || 'warranty').trim();
+  if (prefix && prefix.startsWith('att_')) {
+    const row = $(prefix);
+    return (row?.querySelector('.att-name')?.value || 'attachment').trim();
+  }
+  return 'document';
 }
 
 async function api(path, opts={}) {
@@ -2263,28 +2360,30 @@ async function saveEntry() {
     const n = row.querySelector('.att-name')?.value?.trim();
     if(!n) continue;
     
+    const existingLinks = getAttachmentExistingFileLinks(row);
+    const rowFiles = row.filesArray || [];
+    let existingToKeep = existingLinks;
+    let fileIndex = -1;
+
+    if (rowFiles.length > 0) {
+      overlay(true, `Processing files for ${n}...`, 10 + Math.round((i / attRows.length) * 40));
+      const { filesToUpload, existingLinksToKeep } = await prepareUploadWithExisting(rowFiles, existingLinks, n);
+      existingToKeep = existingLinksToKeep;
+      if (filesToUpload.length > 0) {
+        filesToUpload.forEach(file => fd.append('att_file_' + i, file));
+        fileIndex = i;
+      }
+    }
+
     atts.push({
       id: row.dataset.attachmentId || '',
       name: n,
       value: row.querySelector('.att-value')?.value||'',
       datetime: row.querySelector('.att-datetime')?.value||'',
       description: row.querySelector('.att-desc')?.value||'',
-      existing_file_link: getAttachmentExistingFileLinks(row).join(',')
+      existing_file_link: existingToKeep.join(','),
+      file_index: fileIndex
     });
-    
-    const rowFiles = row.filesArray || [];
-    if (rowFiles.length > 0) {
-      overlay(true, `Processing files for ${n}...`, 10 + Math.round((i / attRows.length) * 40));
-      const prepared = await prepareUploadFiles(rowFiles, n);
-      if (prepared.length > 0) {
-        prepared.forEach(file => fd.append('att_file_' + i, file));
-        atts[atts.length - 1].file_index = i;
-      } else {
-        atts[atts.length - 1].file_index = -1;
-      }
-    } else {
-      atts[atts.length - 1].file_index = -1;
-    }
   }
   fd.append('attachments', JSON.stringify(atts));
 
@@ -2345,7 +2444,7 @@ async function openEntryDetail(eid) {
           ${a.value?`<div style="font-size:0.9rem;font-weight:600;color:var(--brand);margin-top:2px;">${a.value}</div>`:''}
           ${a.datetime?`<div style="font-size:0.72rem;color:var(--muted);">${new Date(a.datetime).toLocaleString('en-IN')}</div>`:''}
           ${a.description?`<div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">${a.description}</div>`:''}
-          ${parseFileLinks(a.file_drive_link).map((link,i)=>`<a href="${getProxyUrl(link)}" target="_blank" style="font-size:0.75rem;color:var(--accent);margin-top:6px;margin-right:8px;display:inline-block;"><i class="bi bi-cloud me-1"></i>File ${i+1}</a>`).join('')}
+          ${parseFileLinks(a.file_drive_link).map((link,i,arr)=>`<a href="${getProxyUrl(link, fileDownloadName(a.name, i, arr.length))}" target="_blank" style="font-size:0.75rem;color:var(--accent);margin-top:6px;margin-right:8px;display:inline-block;"><i class="bi bi-cloud me-1"></i>File ${i+1}</a>`).join('')}
         </div>`).join('')}
       </div>`:''}
 
@@ -2484,9 +2583,9 @@ async function saveInsurance() {
   
   const title = (provider + '_' + ($('im-pname').value || 'Policy')).trim();
   overlay(true,'Processing files...',15);
-  const filesToUpload = await prepareUploadFiles(S.insFiles, title);
+  const { filesToUpload, existingLinksToKeep } = await prepareUploadWithExisting(S.insFiles, getExistingFileLinks('im'), title);
   filesToUpload.forEach(f=>fd.append('files',f));
-  fd.append('existing_file_links', getExistingFileLinks('im').join(','));
+  fd.append('existing_file_links', existingLinksToKeep.join(','));
 
   overlay(true,'Saving insurance...',60);
   try {
@@ -2516,7 +2615,7 @@ function openInsuranceDetail(iid) {
       ${[['Persons Covered',persons],['Policy No.',ins.policy_number],['Sum Insured',fmtMoney(ins.sum_insured)],['Premium',fmtMoney(ins.premium_amount)+' / '+ins.premium_frequency],['Next Due',dueLabel],['Renewal',fmtDate(ins.renewal_date)]].filter(([,v])=>v).map(([l,v])=>`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-val">${v}</span></div>`).join('')}
     </div>
     ${ins.notes?`<div class="detail-section"><div class="detail-section-title">Notes</div><div style="font-size:0.82rem;">${ins.notes}</div></div>`:''}
-    ${ins.file_drive_links?(ins.file_drive_links.split(',').filter(Boolean).map((l,i)=>`<a href="${getProxyUrl(l)}" target="_blank" style="display:inline-block;margin-right:8px;font-size:0.78rem;color:var(--accent);"><i class="bi bi-cloud me-1"></i>Document ${i+1}</a>`).join('')):''}`;
+    ${ins.file_drive_links?(ins.file_drive_links.split(',').filter(Boolean).map((l,i,arr)=>`<a href="${getProxyUrl(l, fileDownloadName(ins.policy_name||ins.provider||'insurance', i, arr.length))}" target="_blank" style="display:inline-block;margin-right:8px;font-size:0.78rem;color:var(--accent);"><i class="bi bi-cloud me-1"></i>Document ${i+1}</a>`).join('')):''}`;
   $('detail-modal-footer').innerHTML=`<button class="btn-secondary-brand" onclick="closeModal('detail-modal')">Close</button>`;
   openModal('detail-modal');
 }
@@ -2588,9 +2687,9 @@ async function saveVaultDoc() {
   const personName = $('vm-person').value ? (S.people.find(p=>p.id===$('vm-person').value)?.name || 'Family') : 'Family';
   const title = (personName + '_' + name).trim();
   overlay(true,'Processing files...',15);
-  const filesToUpload = await prepareUploadFiles(S.vaultFiles, title);
+  const { filesToUpload, existingLinksToKeep } = await prepareUploadWithExisting(S.vaultFiles, getExistingFileLinks('vm'), title);
   filesToUpload.forEach(f=>fd.append('files',f));
-  fd.append('existing_file_links', getExistingFileLinks('vm').join(','));
+  fd.append('existing_file_links', existingLinksToKeep.join(','));
 
   overlay(true,'Saving document...',60);
   try {
@@ -2617,7 +2716,7 @@ function openVaultDetail(vid) {
       ${[['Doc Number',d.document_number],['Issue Date',fmtDate(d.issue_date)],['Expiry Date',fmtDate(d.expiry_date)]].filter(([,v])=>v).map(([l,v])=>`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-val">${v}</span></div>`).join('')}
     </div>
     ${d.description?`<div class="detail-section"><div class="detail-section-title">Notes</div><div style="font-size:0.82rem;">${d.description}</div></div>`:''}
-    ${d.file_drive_links?(d.file_drive_links.split(',').filter(Boolean).map((l,i)=>`<a href="${getProxyUrl(l)}" target="_blank" style="display:inline-block;margin-right:8px;margin-bottom:4px;font-size:0.78rem;color:var(--accent);"><i class="bi bi-cloud me-1"></i>File ${i+1}</a>`).join('')):''}`;
+    ${d.file_drive_links?(d.file_drive_links.split(',').filter(Boolean).map((l,i,arr)=>`<a href="${getProxyUrl(l, fileDownloadName(d.name||'document', i, arr.length))}" target="_blank" style="display:inline-block;margin-right:8px;margin-bottom:4px;font-size:0.78rem;color:var(--accent);"><i class="bi bi-cloud me-1"></i>File ${i+1}</a>`).join('')):''}`;
   $('detail-modal-footer').innerHTML=`<button class="btn-secondary-brand" onclick="closeModal('detail-modal')">Close</button>`;
   openModal('detail-modal');
 }
@@ -2685,11 +2784,10 @@ async function saveWarranty() {
   fd.append('warranty_till', $('wm-warranty-till').value);
   fd.append('notes', $('wm-notes').value);
   
-  fd.append('existing_file_links', getExistingFileLinks('wm').join(','));
-  
   overlay(true,'Processing files...',15);
-  const filesToUpload = await prepareUploadFiles(S.warrantyFiles, product);
+  const { filesToUpload, existingLinksToKeep } = await prepareUploadWithExisting(S.warrantyFiles, getExistingFileLinks('wm'), product);
   filesToUpload.forEach(f => fd.append('files', f));
+  fd.append('existing_file_links', existingLinksToKeep.join(','));
   
   overlay(true,'Saving...',60);
   try {
@@ -2713,7 +2811,7 @@ function openWarrantyDetail(wid) {
       ${[['Purchase Date',fmtDate(d.purchase_date)],['Warranty Till',fmtDate(d.warranty_till)]].filter(([,v])=>v).map(([l,v])=>`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-val">${v}</span></div>`).join('')}
     </div>
     ${d.notes?`<div class="detail-section"><div class="detail-section-title">Notes</div><div style="font-size:0.82rem;">${d.notes}</div></div>`:''}
-    ${d.file_drive_links?(d.file_drive_links.split(',').filter(Boolean).map((l,i)=>`<a href="${getProxyUrl(l)}" target="_blank" style="display:inline-block;margin-right:8px;margin-bottom:4px;font-size:0.78rem;color:var(--accent);"><i class="bi bi-cloud me-1"></i>Invoice ${i+1}</a>`).join('')):''}`;
+    ${d.file_drive_links?(d.file_drive_links.split(',').filter(Boolean).map((l,i,arr)=>`<a href="${getProxyUrl(l, fileDownloadName(d.product||'warranty', i, arr.length))}" target="_blank" style="display:inline-block;margin-right:8px;margin-bottom:4px;font-size:0.78rem;color:var(--accent);"><i class="bi bi-cloud me-1"></i>Invoice ${i+1}</a>`).join('')):''}`;
   $('detail-modal-footer').innerHTML=`<button class="btn-secondary-brand" onclick="closeModal('detail-modal')">Close</button>`;
   openModal('detail-modal');
 }

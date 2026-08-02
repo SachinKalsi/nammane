@@ -168,10 +168,12 @@ Stores purchased appliances and products warranties.
 
 ### 4.2 Document View Proxying (`/api/drive/proxy`)
 Because Google Drive links are not publicly accessible and require authentication:
-1. When viewing a document on the frontend, links are routed through `/api/drive/proxy?pin=...&link=...`.
-2. The backend validates the `pin` argument (applying the lockout rate limits).
-3. If authorized, the backend extracts the `file_id` from the Google Drive `webViewLink` and calls the Drive API's `get_media()` method to fetch raw bytes.
-4. It streams the raw file bytes back to the browser with the original MIME type (e.g. `application/pdf`, `image/jpeg`).
+1. When viewing a document on the frontend, links are routed through `/api/drive/proxy?pin=...&link=...&name=...`.
+2. The optional `name` query param comes from the record's name field (attachment name, policy name, document name, product name, etc.) so downloads are named e.g. `Blood_Report.pdf` instead of `proxy.pdf`.
+3. The same proxy is reused on edit-save when new images are uploaded: the client fetches existing Drive files to decide whether to merge images into a PDF (see §5.5).
+4. The backend validates the `pin` argument (applying the lockout rate limits).
+5. If authorized, the backend extracts the `file_id` from the Google Drive `webViewLink` and calls the Drive API's `get_media()` method to fetch raw bytes.
+6. It streams the raw file bytes back with the original MIME type and a `Content-Disposition: inline; filename="..."` header (falls back to the Drive filename if `name` is omitted).
 
 ---
 
@@ -189,15 +191,27 @@ graph TD
     E --> F[Display list with Crop and Remove controls]
     F -->|Crop/Rotate clicked| G[Open Cropper.js modal]
     G -->|Crop applied| H[Export Canvas to Blob & update JS array]
-    F -->|User clicks Save| I{Are there multiple images?}
+    F -->|User clicks Save| Q{Any new files selected?}
+    Q -->|No| P[Keep existing Drive links unchanged]
+    Q -->|Yes| R{Any new images?}
+    R -->|No| S[Upload new non-images as-is]
+    R -->|Yes| T{Existing Drive links present?}
+    T -->|Yes| U[Fetch existing via /api/drive/proxy]
+    U --> V{Classify existing files}
+    V -->|Images| W[Merge existing images + new images]
+    V -->|PDFs / other| X[Keep existing PDF links separate]
+    W --> I{Total images ≥ 2?}
+    T -->|No| I
     I -->|Yes| J[Auto-compile into PDF client-side via jsPDF]
     I -->|No| K[Compress single image client-side via Canvas]
-    J --> L[Create FormData containing single PDF file]
-    K --> M[Create FormData containing compressed JPEG]
-    L --> N[Upload to Flask API]
+    J --> L[FormData: PDF + keep non-image existing links]
+    K --> M[FormData: JPEG + keep existing links]
+    X --> L
+    S --> N[Upload to Flask API]
+    L --> N
     M --> N
     N --> O[Flask streams file bytes directly to Google Drive]
-    O --> P[Drive link saved to Google Sheet]
+    O --> P2[Drive link saved to Google Sheet]
 ```
 
 ### 5.1 Mobile Camera Integration
@@ -224,13 +238,31 @@ graph TD
   - This results in files averaging **1.5MB to 2.5MB** that look identical to the original image but upload much faster.
 
 ### 5.4 Automatic PDF Compilation (jsPDF)
-- If a user uploads **2 or more images** in a form, they are automatically merged into a single multi-page PDF.
+- If a user uploads **2 or more images** in a form (same save), they are automatically merged into a single multi-page PDF.
 - The client-side logic processes the images sequentially, adds a new page in `jsPDF` for each image, scales each image to fit A4 page dimensions while keeping its aspect ratio, and exports the PDF:
   ```javascript
   const pdfBlob = pdf.output('blob');
   const compiledPdfFile = new File([pdfBlob], name, { type: 'application/pdf' });
   ```
 - The compiled `.pdf` file replaces the individual images inside the FormData object before the fetch request is dispatched to the backend API.
+
+### 5.5 Incremental Edits (`prepareUploadWithExisting`)
+On edit, previously saved files are stored as Google Drive links (not `File` objects). PDF compilation must therefore consider both **new uploads** and **existing images**.
+
+Implemented in `templates/index.html` via `prepareUploadWithExisting(newFiles, existingLinks, title)` and used by health attachments, insurance, vault, and warranty saves:
+
+| Scenario | Behavior |
+|----------|----------|
+| No new files selected | Skip Drive fetch entirely; keep existing links unchanged |
+| New non-image files only | Upload as-is; no Drive fetch; keep all existing links |
+| Existing **image(s)** + new **image(s)** (total ≥ 2) | Fetch existing images via `/api/drive/proxy`, merge with new images into one PDF, **replace** those image links with the new PDF |
+| Existing **PDF** (or other non-image) + new photo(s) | Leave the PDF **separate**; compress/compile only the new images and append |
+| Fetch failure for an existing file | Treat as non-mergeable; keep the original link so nothing is lost |
+
+Key rules:
+- Drive is contacted **only when new images are being uploaded** and there are existing links to evaluate.
+- Existing PDFs are never opened or rewritten; new photos stay as a separate JPEG/PDF alongside them.
+- After a successful image→PDF merge, the old image Drive links are dropped from `existing_file_links` / `existing_file_link` so the backend appends only the new compiled PDF (plus any kept non-image links).
 
 ---
 

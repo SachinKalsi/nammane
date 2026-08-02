@@ -115,12 +115,39 @@ def proxy_drive_file():
     if not link:
         return "Missing link", 400
     
-    file_bytes, mime_type = data_service.stream_file(link)
+    file_bytes, mime_type, drive_name = data_service.stream_file(link)
     if not file_bytes:
         return "File not found or unreadable", 404
-        
+
+    # Prefer the record name from the client; fall back to Drive filename
+    requested_name = (request.args.get('name') or '').strip()
+    download_name = requested_name or drive_name or 'document'
+
+    mime_ext = {
+        'application/pdf': '.pdf',
+        'image/jpeg': '.jpg',
+        'image/jpg': '.jpg',
+        'image/png': '.png',
+        'image/webp': '.webp',
+        'image/gif': '.gif',
+    }
+    known_exts = tuple(mime_ext.values()) + ('.jpeg',)
+    if not download_name.lower().endswith(known_exts):
+        download_name += mime_ext.get(mime_type or '', '')
+
+    # Sanitize for Content-Disposition (keep unicode via filename*)
+    safe_name = "".join(c for c in download_name if c not in '<>:"/\\|?*\0').strip() or 'document'
+    ascii_name = secure_filename(safe_name) or 'document'
+    if mime_type and not ascii_name.lower().endswith(known_exts):
+        ascii_name += mime_ext.get(mime_type, '')
+
+    from urllib.parse import quote
     from flask import Response
-    return Response(file_bytes, mimetype=mime_type)
+    resp = Response(file_bytes, mimetype=mime_type)
+    resp.headers['Content-Disposition'] = (
+        f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(safe_name)}"
+    )
+    return resp
 
 # ---------------------------------------------------------
 # UI ROUTES

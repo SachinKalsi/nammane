@@ -316,7 +316,7 @@ Recent Reports
 - Type (Health / Life / Term / Vehicle / Other)
 - Sum insured, Premium amount, Premium frequency
 - Premium due date, Renewal date
-- File uploads (multiple)
+- File uploads (multiple) — client compresses images; 2+ images (including on later edit) merge to one PDF; existing PDFs stay separate
 - Notes
 - Save
 
@@ -354,9 +354,10 @@ Attachments section (repeatable rows):
 
 On Save:
 1. Create Drive folder: `Nammane/Health/MedicalReports/{PersonName}/{EntryName}_{Date}/`
-2. Upload each file, store path + Drive link
-3. Write to Health_Entries sheet
-4. Write to Health_Attachments sheet
+2. Client-side: compress images; if 2+ images (including existing images when adding more on edit), merge into one PDF. Existing PDFs stay separate.
+3. Upload each file, store path + Drive link
+4. Write to Health_Entries sheet
+5. Write to Health_Attachments sheet
 5. Write to Health_Medicines sheet (if any medicines added)
 
 **Entry Detail Page:**
@@ -405,7 +406,7 @@ On Save:
 - Issued by (optional)
 - Issue date (optional)
 - Expiry date (optional — show alert when near expiry)
-- File uploads (multiple)
+- File uploads (multiple) — same client-side compress / multi-image PDF merge as medical reports
 - Description / Notes
 - Save → uploads to Drive, writes to Vault_Documents sheet
 
