@@ -328,6 +328,8 @@ Every push to `main` triggers `.github/workflows/deploy.yml`, which SSHs into th
 
 Repo → **Settings → Secrets and variables → Actions** → add:
 
+**Deploy / SSH**
+
 | Secret | Example |
 |--------|---------|
 | `DEPLOY_HOST` | `132.226.x.x` (Oracle public IP) |
@@ -337,10 +339,25 @@ Repo → **Settings → Secrets and variables → Actions** → add:
 
 Optional: `DEPLOY_PORT` if SSH is not on 22 (uncomment `port` in the workflow).
 
+**App config** (written to server `.env` on every deploy)
+
+| Secret | Purpose |
+|--------|---------|
+| `READ_PIN` | Read-only access PIN |
+| `WRITE_PIN` | Read/write access PIN |
+| `SPREADSHEET_ID` | Google Sheets spreadsheet ID |
+| `DRIVE_ROOT_FOLDER_ID` | Google Drive root folder ID |
+
+All four app secrets must be set. On each deploy, `scripts/deploy.sh` rewrites the server `.env` from these values and restarts the service. To change a PIN or ID: update the GitHub secret, then push to `main` or **Run workflow** manually.
+
+Manual `bash scripts/deploy.sh` on the server (without those env vars exported) leaves the existing `.env` alone.
+
+Google API files (`credentials.json`, `token.json`) stay on the server only — still gitignored, not managed by Actions.
+
 ### After setup
 
 - Push to `main` → Actions tab shows **Deploy to Oracle Cloud** → server updates automatically.
 - Or trigger **Run workflow** manually from the Actions tab.
 - Manual fallback on the server: `bash scripts/deploy.sh`.
 
-**Note:** `git reset --hard origin/main` means local edits on the server are discarded on each deploy. Keep secrets (`.env`, `credentials.json`, `token.json`) outside git (already gitignored) so they survive resets.
+**Note:** `git reset --hard origin/main` discards tracked edits on the server. `.env` is regenerated from GitHub secrets when those env vars are present; `credentials.json` / `token.json` remain outside git so they survive resets.

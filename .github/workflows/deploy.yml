@@ -15,12 +15,18 @@ jobs:
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          READ_PIN: ${{ secrets.READ_PIN }}
+          WRITE_PIN: ${{ secrets.WRITE_PIN }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          DRIVE_ROOT_FOLDER_ID: ${{ secrets.DRIVE_ROOT_FOLDER_ID }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           # Optional if you use a non-default port:
           # port: ${{ secrets.DEPLOY_PORT }}
+          envs: READ_PIN,WRITE_PIN,SPREADSHEET_ID,DRIVE_ROOT_FOLDER_ID
           script_stop: true
           script: |
             set -euo pipefail
