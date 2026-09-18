@@ -117,7 +117,7 @@ Stores insurance policy records and documents.
 - `type` (string, e.g. "Health", "Life", "Vehicle")
 - `sum_insured` (number)
 - `premium_amount` (number)
-- `premium_frequency` (string, e.g. "Annual", "Monthly")
+- `premium_frequency` (string, e.g. "Annual", "Semi-Annual", "Quarterly", "Monthly")
 - `premium_due_date` (date)
 - `renewal_date` (date)
 - `file_paths` (string comma-separated Google Drive links)

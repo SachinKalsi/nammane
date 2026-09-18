@@ -189,7 +189,7 @@ Independent entity. Linked to an entry optionally.
 | type | string | Health / Life / Term / Vehicle / Other |
 | sum_insured | number | INR |
 | premium_amount | number | INR |
-| premium_frequency | string | Monthly / Quarterly / Annual |
+| premium_frequency | string | Monthly / Quarterly / Semi-Annual / Annual |
 | premium_due_date | date | Next due date |
 | renewal_date | date | |
 | file_paths | string | Comma separated Drive paths |
